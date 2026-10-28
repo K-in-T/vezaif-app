@@ -19,11 +19,23 @@
       window.firebaseModules = { initializeApp, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs };
     </script>
 </head>
-<body class="bg-stone-900 text-stone-100 font-sans h-screen overflow-hidden">
-    
-    <div id="app" class="flex h-full"></div>
-
+<body class="bg-stone-900 text-stone-100 font-sans w-screen h-screen overflow-hidden m-0 p-0">
+    <div id="app" class="w-full h-full flex flex-col"></div>
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="app.js"></script>
 </body>
 </html>
+
+<!--
+    TODO:
+        [] Ağacın durumlarının görünümü
+        [] Ekstra vazife tespiti
+        [] Dosya yükleme ve görüntüleme mantığı
+
+    Yayın domain adresi: vezaif.vercel.app
+
+    Kodu internette gncellemek için terminalde:
+        git add .
+        git commit -m "commit mesajı"
+        git push origin main
+-->

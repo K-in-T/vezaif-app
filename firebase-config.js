@@ -1,10 +1,8 @@
-// Import the functions you need from the SDKs you need
+// 1. Firebase SDK'larını import edin
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -18,12 +16,18 @@ const firebaseConfig = {
   measurementId: "G-007QWEY07K"
 };
 
+// 3. ÖNCE Firebase uygulamasını başlatın (EN ÖNEMLİ KISIM)
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
 
-console.log("Firebase ve Çevrimdışı Firestore başarıyla bağlandı!");
+// 4. SONRA servisleri (Auth, Firestore, Storage) başlatıp app'e bağlayın
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+const storage = getStorage(app);
+
+// 5. app.js içinde kullanabilmek için global window nesnesine atayın
+window.storage = storage;
+window.FirebaseStorage = {
+    ref,
+    uploadBytes,
+    getDownloadURL
+};

@@ -13,12 +13,7 @@ let state = {
     lastCheckDate: null,
     authStep: 'login',
     tempAuthData: { email: '', pass: '' },
-    tasks: [
-        { id: 1, title: "Kur'an-ı Kerim Cüz Okuma", category: "Kur'an", completed: false, isExtra: false },
-        { id: 2, title: 'Osmanlıca Metin Çevirisi', category: 'Osmanlıca', completed: false, isExtra: false },
-        { id: 3, title: 'Ezber Kaydı Yükleme', category: 'Ezber', completed: false, isExtra: false },
-        { id: 4, title: 'Günün Mütalaası ve Notlar', category: 'Mütalaa', completed: false, isExtra: false }
-    ],
+    tasks: [], // <-- Varsayılan vazifeler 
     students: []
 };
 
@@ -170,8 +165,13 @@ async function saveUserData() {
     }
 }
 
+// Navigation Bar ve Ana İçerik Alanı Render Fonksiyonu
 // --- RENDER MİMARİSİ ---
 function render() {
+    // 1. İşlem yapılmadan önceki kaydırma (scroll) konumunu kaydet
+    const mainElement = document.querySelector('main');
+    const currentScrollTop = mainElement ? mainElement.scrollTop : 0;
+
     const app = document.getElementById('app');
     
     if (!state.user) {
@@ -180,57 +180,58 @@ function render() {
     }
 
     app.innerHTML = `
-        <!-- SOL YAN PANEL (Varsayılan Dar / Hover ile Genişler) -->
-        <aside class="group w-20 hover:w-72 bg-stone-950 border-r border-stone-800 flex flex-col justify-between p-4 transition-all duration-300 z-30 overflow-hidden shadow-2xl">
-            <div>
-                <div class="flex items-center gap-3 mb-8 px-1">
-                    <div class="p-2 bg-emerald-950 border border-emerald-800 rounded-xl text-emerald-400 shrink-0">🌿</div>
-                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+        <div class="w-full h-full flex flex-col bg-stone-900 text-stone-100 overflow-hidden">
+            <!-- ÜST SABİT SEKME ÇUBUĞU -->
+            <header class="w-full bg-stone-950 border-b border-stone-800 px-6 py-3.5 flex items-center justify-between gap-4 shrink-0 shadow-lg z-30">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-emerald-950 border border-emerald-800 rounded-xl text-emerald-400">🌿</div>
+                    <div>
                         <h1 class="font-bold text-base tracking-wide text-emerald-100">Medrese Gelişim</h1>
                         <p class="text-xs text-stone-400">İlim & İstikrar Takibi</p>
                     </div>
                 </div>
 
-                <nav class="space-y-1.5">
-                    <button onclick="switchTab('dashboard')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'dashboard' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50' : 'text-stone-400 hover:bg-stone-900'}">
-                        <span class="text-lg shrink-0">🌲</span> <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Ana Ekran (Ağaç)</span>
+                <nav class="flex items-center gap-1.5 overflow-x-auto py-1">
+                    <button onclick="switchTab('dashboard')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'dashboard' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 shadow-sm' : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'}">
+                        <span>🌲</span> Ana Ekran
                     </button>
-                    <button onclick="switchTab('istatistik')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'istatistik' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50' : 'text-stone-400 hover:bg-stone-900'}">
-                        <span class="text-lg shrink-0">📊</span> <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">İstatistikler</span>
+                    <button onclick="switchTab('istatistik')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'istatistik' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 shadow-sm' : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'}">
+                        <span>📊</span> İstatistikler
                     </button>
-                    <button onclick="switchTab('kazanimlar')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'kazanimlar' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50' : 'text-stone-400 hover:bg-stone-900'}">
-                        <span class="text-lg shrink-0">🏆</span> <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Kazanımlar</span>
+                    <button onclick="switchTab('kazanimlar')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'kazanimlar' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 shadow-sm' : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'}">
+                        <span>🏆</span> Kazanımlar
                     </button>
                     ${state.role === 'sorumlu' ? `
-                        <button onclick="switchTab('sorumlu-paneli')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'sorumlu-paneli' ? 'bg-amber-950/40 text-amber-400 border border-amber-800/50' : 'text-amber-500/80 hover:bg-stone-900'}">
-                            <span class="text-lg shrink-0">👤</span> <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Sorumlu Paneli</span>
+                        <button onclick="switchTab('sorumlu-paneli')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'sorumlu-paneli' ? 'bg-amber-950/40 text-amber-400 border border-amber-800/50 shadow-sm' : 'text-amber-500/80 hover:bg-stone-900 hover:text-amber-400'}">
+                            <span>👤</span> Sorumlu Paneli
                         </button>
                     ` : ''}
-                    <button onclick="switchTab('ayarlar')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'ayarlar' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50' : 'text-stone-400 hover:bg-stone-900'}">
-                        <span class="text-lg shrink-0">⚙️</span> <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Ayarlar</span>
+                    <button onclick="switchTab('ayarlar')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'ayarlar' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 shadow-sm' : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'}">
+                        <span>⚙️</span> Ayarlar
                     </button>
                 </nav>
-            </div>
 
-            <div class="border-t border-stone-800 pt-4 space-y-3">
-                <div class="px-1 text-xs text-stone-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 truncate">
+                <div class="text-xs text-stone-400 hidden xl:block truncate max-w-[200px]">
                     Oturum: <strong class="text-stone-200">${state.user.email}</strong>
                 </div>
-                <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-950/30 rounded-lg">
-                    <span class="text-lg shrink-0">🚪</span> <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Çıkış Yap</span>
-                </button>
-            </div>
-        </aside>
+            </header>
 
-        <!-- ANA İÇERİK -->
-        <main class="flex-1 overflow-y-auto p-8 bg-stone-900">
-            ${state.activeTab === 'dashboard' ? renderDashboard() : ''}
-            ${state.activeTab === 'istatistik' ? renderStats() : ''}
-            ${state.activeTab === 'kazanimlar' ? renderAwards() : ''}
-            ${state.activeTab === 'sorumlu-paneli' && state.role === 'sorumlu' ? renderSupervisor() : ''}
-            ${state.activeTab === 'ayarlar' ? renderSettings() : ''}
-        </main>
+            <!-- ANA İÇERİK ALANI -->
+            <main class="w-full flex-1 overflow-y-auto p-6 md:p-8 bg-stone-900">
+                ${state.activeTab === 'dashboard' ? renderDashboard() : ''}
+                ${state.activeTab === 'istatistik' ? renderStats() : ''}
+                ${state.activeTab === 'kazanimlar' ? renderAwards() : ''}
+                ${state.activeTab === 'sorumlu-paneli' && state.role === 'sorumlu' ? renderSupervisor() : ''}
+                ${state.activeTab === 'ayarlar' ? renderSettings() : ''}
+            </main>
+        </div>
     `;
+
+    // 2. Render tamamlandıktan sonra kaydırma konumunu eski yerine getir
+    const newMainElement = document.querySelector('main');
+    if (newMainElement) {
+        newMainElement.scrollTop = currentScrollTop;
+    }
 }
 
 function renderLoginScreen() {
@@ -282,11 +283,11 @@ function renderLoginScreen() {
 
 function renderDashboard() {
     return `
-        <div class="max-w-4xl mx-auto space-y-8">
+        <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
             <header class="flex justify-between items-center bg-stone-950 p-6 rounded-2xl border border-stone-800">
                 <div>
                     <h2 class="text-2xl font-bold text-stone-100">Günlük Vazifeler ve Hayat Ağacı</h2>
-                    <p class="text-sm text-stone-400">Vazifelerinizi aksatmadan tamamlayın, ağacınız yeşersin.</p>
+                    <p class="text-sm text-stone-400">Vazifelerinizi dosya/not yükleyerek tamamlayın. Gece 00:00'da kontrol edilir.</p>
                 </div>
                 <div class="flex items-center gap-2 bg-emerald-950/60 border border-emerald-800/60 px-4 py-2 rounded-xl text-emerald-300">
                     <span class="text-sm font-semibold">🔥 Seri (Streak): ${state.streak} Gün</span>
@@ -294,7 +295,7 @@ function renderDashboard() {
             </header>
 
             <!-- AĞAÇ DURUM ALANI -->
-            <div class="bg-stone-950 border border-stone-800 rounded-3xl p-8 text-center flex flex-col items-center justify-center min-h-[280px]">
+            <div class="bg-stone-950 border border-stone-800 rounded-3xl p-8 text-center flex flex-col items-center justify-center min-h-[260px]">
                 <div class="p-6 rounded-full text-6xl mb-4 transition-all duration-500 ${
                     state.treeState === 'growing' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-700/50 shadow-lg shadow-emerald-950' :
                     state.treeState === 'wilting' ? 'bg-amber-950/80 text-amber-400 border border-amber-700/50' : 
@@ -307,134 +308,277 @@ function renderDashboard() {
                 </h3>
             </div>
 
-            <!-- VAZİFELER LİSTESİ VE YENİ VAZİFE EKLEME -->
+            <!-- VAZİFELER LİSTESİ VE YENİ VAZİFE TANIMLAMA -->
             <div class="bg-stone-950 border border-stone-800 rounded-3xl p-6 space-y-6">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-bold">✅ Günün Vazifeleri</h3>
+                    <h3 class="text-lg font-bold">📋 Günün Vazifeleri</h3>
                 </div>
 
-                <!-- Yeni Vazife Ekleme Input Alanı -->
+                <!-- YENİ VAZİFE TANIMLAMA FORMU (Sadeleştirilmiş) -->
                 <form onsubmit="addNewTask(event)" class="flex gap-2">
-                    <input type="text" id="new-task-title" placeholder="Yeni vazife ekle (Örn: Risale okuması)..." required class="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 focus:outline-none focus:border-emerald-500">
+                    <input type="text" id="new-task-title" placeholder="Yeni vazife ekle (Örn: Kur'an Cüzü, Risale Okuması)..." required class="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 focus:outline-none focus:border-emerald-500">
+                    
                     <select id="new-task-category" class="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-emerald-500">
-                        <option value="Özel">Özel / Genel</option>
-                        <option value="Kur'an">Kur'an</option>
-                        <option value="Osmanlıca">Osmanlıca</option>
-                        <option value="Ezber">Ezber</option>
-                        <option value="Mütalaa">Mütalaa</option>
+                        <option value="Kur'an">📖 Kur'an</option>
+                        <option value="Ezber">🎙️ Ezber</option>
+                        <option value="Osmanlıca">📜 Osmanlıca</option>
+                        <option value="Mütalaa">📚 Mütalaa</option>
+                        <option value="Özel">✨ Özel</option>
                     </select>
+
                     <button type="submit" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-stone-950 font-bold rounded-xl text-sm transition-colors shadow-lg">Ekle</button>
                 </form>
 
-                <div class="space-y-3">
-                    ${state.tasks.map(task => `
-                        <div class="p-4 rounded-2xl bg-stone-900 border ${task.isExtra ? 'border-amber-900/50 bg-amber-950/10' : 'border-stone-800'} flex items-center justify-between">
-                            <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTask(${task.id})" class="w-5 h-5 accent-emerald-500 rounded">
-                                <span class="${task.completed ? 'line-through text-stone-500' : 'text-stone-200'} font-medium">${task.title}</span>
-                            </label>
-                            <span class="text-xs px-2.5 py-1 rounded-full ${task.isExtra ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-stone-800 text-stone-400'}">
-                                ${task.isExtra ? '✨ Ek Vazife' : task.category}
-                            </span>
+                <!-- VAZİFELER LİSTESİ -->
+                <div class="space-y-4">
+                    ${state.tasks.length > 0 ? state.tasks.map(task => `
+                        <div class="p-5 rounded-2xl bg-stone-900 border ${task.completed ? 'border-emerald-900/50 bg-emerald-950/10' : 'border-stone-800'} space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center gap-3">
+                                    <h4 class="font-semibold text-stone-100 ${task.completed ? 'line-through text-stone-400' : ''}">${task.title}</h4>
+                                    <span class="text-xs px-2.5 py-1 rounded-full bg-stone-800 text-stone-300">
+                                        ${task.category}
+                                    </span>
+                                </div>
+                                <!-- SİLME BUTONU -->
+                                <button onclick="deleteTask(${task.id})" class="text-stone-500 hover:text-red-400 text-xs px-2 py-1 rounded-lg hover:bg-red-950/30 transition-colors">
+                                    🗑️ Sil
+                                </button>
+                            </div>
+
+                            <!-- DOSYA VEYA METİN YÜKLEME -->
+                            ${!task.completed ? `
+                                <div class="pt-2 border-t border-stone-800/60 flex flex-col md:flex-row gap-3 items-center">
+                                    <input type="file" id="file-input-${task.id}" class="w-full text-xs text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-800 file:text-emerald-400 hover:file:bg-stone-700">
+                                    <button onclick="completeTaskWithProof(${task.id})" class="w-full md:w-auto px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-medium text-xs rounded-xl whitespace-nowrap transition-colors">
+                                        📤 Kanıt Yükle
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="pt-2 border-t border-emerald-900/40 flex justify-between items-center text-xs">
+                                    <div class="text-emerald-400 font-mono truncate max-w-md">
+                                        Yüklenen: ${task.proofData}
+                                    </div>
+                                    <button onclick="uncompleteTask(${task.id})" class="text-stone-500 hover:text-red-400 underline ml-2">
+                                        Değiştir
+                                    </button>
+                                </div>
+                            `}
                         </div>
-                    `).join('')}
+                    `).join('') : `
+                        <div class="text-center py-10 text-stone-500 space-y-2 border border-dashed border-stone-800 rounded-2xl">
+                            <span class="text-3xl">📝</span>
+                            <p class="text-sm font-medium">Henüz eklenmiş bir vazifeniz bulunmuyor.</p>
+                            <p class="text-xs text-stone-600">Yukarıdaki alandan medrese programınıza uygun vazifelerinizi ekleyin.</p>
+                        </div>
+                    `}
                 </div>
             </div>
         </div>
     `;
 }
 
+// --- İSTATİSTİKLER SEKMESİ (Kategori Bazlı İlerleme Çubukları) ---
+// --- İSTATİSTİKLER SEKMESİ (Haftalık, Aylık ve Genel Analiz) ---
+window.statsPeriod = window.statsPeriod || 'genel'; // 'haftalik', 'aylik', 'genel'
+
+window.setStatsPeriod = function(period) {
+    window.statsPeriod = period;
+    render();
+}
+
 function renderStats() {
-    // Örnek hesaplamalar veya state üzerinden gelen veriler
     const totalStreak = state.streak || 0;
     const completedTasksCount = state.tasks.filter(t => t.completed).length;
     const totalTasksCount = state.tasks.length;
-    const completionPercentage = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+    const todayCompletion = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
+    // Alan bazlı kategoriler
+    const categories = ["Kur'an", "Osmanlıca", "Ezber", "Mütalaa", "Özel"];
+    const categoryStats = categories.map(cat => {
+        const catTasks = state.tasks.filter(t => t.category === cat);
+        const catTotal = catTasks.length;
+        const catCompleted = catTasks.filter(t => t.completed).length;
+        const percent = catTotal > 0 ? Math.round((catCompleted / catTotal) * 100) : 0;
+        return { category: cat, total: catTotal, completed: catCompleted, percent };
+    }).filter(c => c.total > 0);
 
     return `
         <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
-            <!-- Başlık -->
-            <div class="bg-stone-950 p-6 rounded-2xl border border-stone-800 flex justify-between items-center">
+            <!-- Başlık ve Zaman Dilimi Filtresi -->
+            <div class="bg-stone-950 p-6 rounded-2xl border border-stone-800 flex flex-wrap justify-between items-center gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold text-stone-100">İlerleme ve İstatistikler</h2>
-                    <p class="text-sm text-stone-400">İlim yolundaki istikrarınızı ve günlük performansınızı görsel olarak takip edin.</p>
+                    <h2 class="text-2xl font-bold text-stone-100">Gelişim & Performans Analizi</h2>
+                    <p class="text-sm text-stone-400">Zamansal filtreler ile istikrarınızı ve ders bazlı ilerlemenizi takip edin.</p>
                 </div>
-                <div class="p-3 bg-emerald-950/60 border border-emerald-800/60 rounded-xl text-emerald-400 text-xl">
-                    📊
+                
+                <!-- Zaman Dilimi Butonları -->
+                <div class="flex items-center gap-1 bg-stone-900 p-1.5 rounded-xl border border-stone-800">
+                    <button onclick="setStatsPeriod('haftalik')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${window.statsPeriod === 'haftalik' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'text-stone-400 hover:text-stone-200'}">
+                        🗓️ Haftalık
+                    </button>
+                    <button onclick="setStatsPeriod('aylik')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${window.statsPeriod === 'aylik' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'text-stone-400 hover:text-stone-200'}">
+                        📅 Aylık
+                    </button>
+                    <button onclick="setStatsPeriod('genel')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${window.statsPeriod === 'genel' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'text-stone-400 hover:text-stone-200'}">
+                        📜 Genel (Tüm Zamanlar)
+                    </button>
                 </div>
             </div>
 
-            <!-- Özet Kartları Grid -->
+            <!-- ZAMAN DİLİMİNE GÖRE DİNAMİK ÖZET KARTLARI -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-stone-950 border border-stone-800 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between">
+                <div class="bg-stone-950 border border-stone-800 p-6 rounded-3xl flex flex-col justify-between">
                     <div>
-                        <p class="text-stone-400 text-xs font-semibold uppercase tracking-wider">Aktif Seri (Streak)</p>
+                        <p class="text-stone-400 text-xs font-semibold uppercase tracking-wider">
+                            ${window.statsPeriod === 'haftalik' ? 'Haftalık Seri' : window.statsPeriod === 'aylik' ? 'Aylık İstikrar' : 'Aktif Seri (Streak)'}
+                        </p>
                         <h3 class="text-4xl font-extrabold text-emerald-400 mt-2">${totalStreak} <span class="text-lg font-normal text-stone-400">Gün</span></h3>
                     </div>
                     <div class="mt-4 pt-4 border-t border-stone-900 text-xs text-stone-500">
-                        🔥 Her gün kesintisiz devam ediyor
+                        🔥 Kesintisiz devam edilen gün sayısı
                     </div>
                 </div>
 
-                <div class="bg-stone-950 border border-stone-800 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between">
+                <div class="bg-stone-950 border border-stone-800 p-6 rounded-3xl flex flex-col justify-between">
                     <div>
-                        <p class="text-stone-400 text-xs font-semibold uppercase tracking-wider">Bugünkü Tamamlama</p>
-                        <h3 class="text-4xl font-extrabold text-amber-400 mt-2">%${completionPercentage}</h3>
+                        <p class="text-stone-400 text-xs font-semibold uppercase tracking-wider">
+                            ${window.statsPeriod === 'haftalik' ? 'Haftalık Ortalama' : window.statsPeriod === 'aylik' ? 'Aylık Ortalama' : 'Bugünkü Başarı'}
+                        </p>
+                        <h3 class="text-4xl font-extrabold text-amber-400 mt-2">%${todayCompletion}</h3>
                     </div>
                     <div class="mt-4 pt-4 border-t border-stone-900 text-xs text-stone-500">
                         ✅ ${completedTasksCount} / ${totalTasksCount} Vazife Tamamlandı
                     </div>
                 </div>
 
-                <div class="bg-stone-950 border border-stone-800 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between">
+                <div class="bg-stone-950 border border-stone-800 p-6 rounded-3xl flex flex-col justify-between">
                     <div>
-                        <p class="text-stone-400 text-xs font-semibold uppercase tracking-wider">Ağaç Sağlık Durumu</p>
+                        <p class="text-stone-400 text-xs font-semibold uppercase tracking-wider">İlim Ağacı Durumu</p>
                         <h3 class="text-2xl font-bold text-sky-400 mt-2">
-                            ${state.treeState === 'growing' ? '🌳 Sağlıklı Büyüyor' : state.treeState === 'wilting' ? '🍂 Yaprak Döküyor' : '🌰 Tohum Aşamasında'}
+                            ${state.treeState === 'growing' ? '🌳 Sağlıklı Büyüyor' : state.treeState === 'wilting' ? '🍂 Solgun' : '🌰 Tohum'}
                         </h3>
                     </div>
                     <div class="mt-4 pt-4 border-t border-stone-900 text-xs text-stone-500">
-                        🌱 İstikrarına göre şekillenir
+                        🌱 Genel vazife tamamlama disiplini
                     </div>
                 </div>
             </div>
 
-            <!-- Görsel İlerleme Çubuğu (Progress Bar) Alanı -->
+            <!-- ALAN BAZLI GENEL GRAFİK VE İLERLEME -->
             <div class="bg-stone-950 border border-stone-800 rounded-3xl p-8 space-y-6">
-                <h3 class="text-lg font-bold text-stone-200">📈 Günlük Vazife Yoğunluğu ve Başarı</h3>
-                
-                <div class="space-y-3">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-stone-400">Genel İlerleme Çubuğu</span>
-                        <span class="text-emerald-400 font-semibold">%${completionPercentage}</span>
-                    </div>
-                    <div class="w-full bg-stone-900 h-4 rounded-full overflow-hidden p-0.5 border border-stone-800">
-                        <div class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: ${completionPercentage}%"></div>
-                    </div>
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-stone-200">
+                        📖 ${window.statsPeriod === 'haftalik' ? 'Haftalık' : window.statsPeriod === 'aylik' ? 'Aylık' : 'Tüm Zamanlar'} Ders Bazlı İlerleme
+                    </h3>
+                    <span class="text-xs text-stone-500 font-mono">
+                        ${window.statsPeriod === 'genel' ? 'Başlangıçtan İtibaren' : 'Seçili Periyot'}
+                    </span>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-stone-900 text-sm text-stone-400">
-                    <div class="flex items-center gap-3 bg-stone-900/50 p-4 rounded-2xl border border-stone-800/60">
-                        <span class="text-2xl">🏆</span>
-                        <div>
-                            <p class="font-semibold text-stone-200">İstikrar Seviyesi</p>
-                            <p class="text-xs text-stone-500 mt-0.5">Seri gün sayısına göre kademe atlarsınız.</p>
+                
+                <div class="space-y-5">
+                    ${categoryStats.length > 0 ? categoryStats.map(stat => `
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="font-semibold text-stone-300 flex items-center gap-2">
+                                    ${stat.category === "Kur'an" ? '📖' : stat.category === 'Ezber' ? '🎙️' : stat.category === 'Osmanlıca' ? '📜' : '📚'} 
+                                    ${stat.category} Alanı
+                                </span>
+                                <span class="text-xs text-stone-400">
+                                    <strong class="text-emerald-400">%${stat.percent}</strong> (${stat.completed}/${stat.total} Vazife)
+                                </span>
+                            </div>
+                            <div class="w-full bg-stone-900 h-3 rounded-full overflow-hidden p-0.5 border border-stone-800">
+                                <div class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: ${stat.percent}%"></div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-3 bg-stone-900/50 p-4 rounded-2xl border border-stone-800/60">
-                        <span class="text-2xl">💡</span>
-                        <div>
-                            <p class="font-semibold text-stone-200">İyileştirme Tavsiyesi</p>
-                            <p class="text-xs text-stone-500 mt-0.5">Eksik kalan vazifeleri tamamlayarak ağacınızı koruyun.</p>
+                    `).join('') : `
+                        <div class="text-center py-6 text-stone-500 text-xs">
+                            Henüz tanımlanmış ve tamamlanmış bir vazife kategorisi bulunmuyor.
                         </div>
-                    </div>
+                    `}
                 </div>
             </div>
         </div>
     `;
 }
 
-function renderAwards() { return `<div class="max-w-4xl mx-auto space-y-6"><h2 class="text-2xl font-bold">Kazanımlar</h2><p class="text-stone-400">Rozetleriniz listeleniyor.</p></div>`; }
+// --- KAZANIMLAR SEKMESİ (Tarih Damgalı Bitirilen Vazifeler) ---
+function renderAwards() {
+    const todayStr = state.lastCheckDate || new Date().toISOString().split('T')[0];
+    const completedTasks = state.tasks.filter(t => t.completed);
+
+    return `
+        <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+            <!-- Başlık -->
+            <div class="bg-stone-950 p-6 rounded-2xl border border-stone-800 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-stone-100">Kazanımlar ve Tamamlananlar</h2>
+                    <p class="text-sm text-stone-400">Tamamlanan vazifelerinizi ve hangi tarihte bitirildiklerini inceleyin.</p>
+                </div>
+                <div class="p-3 bg-amber-950/60 border border-amber-800/60 rounded-xl text-amber-400 text-xl">
+                    🏆
+                </div>
+            </div>
+
+            <!-- Rozetler Özet -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-stone-950 border border-stone-800 p-4 rounded-2xl text-center space-y-1">
+                    <span class="text-3xl">🌱</span>
+                    <p class="text-xs font-bold text-stone-300">İlim Talebesi</p>
+                    <p class="text-[10px] text-stone-500">İlk Adım</p>
+                </div>
+                <div class="bg-stone-950 border border-stone-800 p-4 rounded-2xl text-center space-y-1 ${state.streak >= 7 ? 'opacity-100' : 'opacity-40'}">
+                    <span class="text-3xl">🔥</span>
+                    <p class="text-xs font-bold text-stone-300">7 Gün İstikrar</p>
+                    <p class="text-[10px] text-stone-500">${state.streak >= 7 ? 'Kazanıldı!' : 'Kilitli'}</p>
+                </div>
+                <div class="bg-stone-950 border border-stone-800 p-4 rounded-2xl text-center space-y-1 ${state.streak >= 30 ? 'opacity-100' : 'opacity-40'}">
+                    <span class="text-3xl">🌳</span>
+                    <p class="text-xs font-bold text-stone-300">Müstakim Ağaç</p>
+                    <p class="text-[10px] text-stone-500">${state.streak >= 30 ? 'Kazanıldı!' : 'Kilitli'}</p>
+                </div>
+                <div class="bg-stone-950 border border-stone-800 p-4 rounded-2xl text-center space-y-1 ${completedTasks.length > 0 ? 'opacity-100' : 'opacity-40'}">
+                    <span class="text-3xl">📜</span>
+                    <p class="text-xs font-bold text-stone-300">Vazife Mimarı</p>
+                    <p class="text-[10px] text-stone-500">${completedTasks.length > 0 ? 'Kazanıldı!' : 'Kilitli'}</p>
+                </div>
+            </div>
+
+            <!-- TARİHLİ BİTİRİLEN VAZİFELER LİSTESİ -->
+            <div class="bg-stone-950 border border-stone-800 rounded-3xl p-6 space-y-6">
+                <h3 class="text-lg font-bold text-stone-200">📅 Tamamlanan Vazifeler Geçmişi</h3>
+
+                ${completedTasks.length > 0 ? `
+                    <div class="space-y-3">
+                        ${completedTasks.map(t => `
+                            <div class="p-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-emerald-400 text-lg">✅</span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-stone-200">${t.title}</p>
+                                        <p class="text-xs text-stone-500">Alan: ${t.category}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-3 py-1 bg-stone-950 text-emerald-400 border border-stone-800 rounded-xl text-xs font-mono">
+                                        🗓️ ${todayStr}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div class="text-center py-8 text-stone-500 space-y-2">
+                        <span class="text-3xl">⏳</span>
+                        <p class="text-sm">Henüz bugün tamamlanan bir vazife bulunmuyor.</p>
+                        <p class="text-xs text-stone-600">Vazifelerinizi tamamladıkça tarih damgasıyla burada listelenecektir.</p>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
 
 function renderSupervisor() {
     return `
@@ -474,7 +618,44 @@ function renderSupervisor() {
     `;
 }
 
-function renderSettings() { return `<div class="max-w-4xl mx-auto space-y-6"><h2 class="text-2xl font-bold">Ayarlar</h2><p class="text-stone-400">Aktif Hesap: ${state.user.email}</p></div>`; }
+function renderSettings() {
+    return `
+        <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+            <!-- Başlık -->
+            <div class="bg-stone-950 p-6 rounded-2xl border border-stone-800 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-stone-100">Ayarlar ve Hesap</h2>
+                    <p class="text-sm text-stone-400">Hesap bilgilerinizi yönetin ve oturumunuzu güvenle kapatın.</p>
+                </div>
+                <div class="p-3 bg-emerald-950/60 border border-emerald-800/60 rounded-xl text-emerald-400 text-xl">
+                    ⚙️
+                </div>
+            </div>
+
+            <!-- Hesap Detayları -->
+            <div class="bg-stone-950 border border-stone-800 rounded-3xl p-8 space-y-6">
+                <h3 class="text-lg font-bold text-stone-200">Oturum Bilgileri</h3>
+                <div class="p-4 bg-stone-900 border border-stone-800 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-stone-400">E-posta Adresi</p>
+                        <p class="text-sm font-semibold text-stone-200 mt-0.5">${state.user.email}</p>
+                    </div>
+                    <span class="px-3 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-full text-xs font-medium">Aktif Oturum</span>
+                </div>
+
+                <div class="pt-4 border-t border-stone-900 flex justify-between items-center">
+                    <div>
+                        <h4 class="text-sm font-bold text-red-400">Oturumu Kapat</h4>
+                        <p class="text-xs text-stone-500 mt-0.5">Hesabınızdan güvenli bir şekilde çıkış yapın.</p>
+                    </div>
+                    <button onclick="handleLogout()" class="px-5 py-2.5 bg-red-950/40 hover:bg-red-900/50 text-red-300 border border-red-800/60 font-medium rounded-xl text-sm transition-colors shadow-lg">
+                        🚪 Çıkış Yap
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
 // --- GLOBAL AKSİYONLAR ---
 window.handleAuth = async function(e) {
@@ -541,35 +722,101 @@ window.handleLogout = async function() {
 window.switchTab = function(tab) { state.activeTab = tab; render(); }
 
 // Yeni Vazife Ekleme Fonksiyonu
+// --- YENİ VAZİFE EKLEME FONKSİYONU ---
+// --- YENİ VAZİFE EKLEME (Tür seçimi kaldırıldı) ---
 window.addNewTask = async function(e) {
     e.preventDefault();
     const titleInput = document.getElementById('new-task-title');
     const categorySelect = document.getElementById('new-task-category');
     
     const newTask = {
-        id: Date.now(), // Benzersiz ID
+        id: Date.now(),
         title: titleInput.value.trim(),
         category: categorySelect.value,
         completed: false,
+        proofData: null,
+        completedAt: null,
         isExtra: false
     };
 
     state.tasks.push(newTask);
     await saveUserData();
-    showNotification("Yeni vazife eklendi!", "success");
+    showNotification("Yeni vazife başarıyla eklendi!", "success");
     render();
 }
 
-window.toggleTask = async function(id) {
-    state.tasks = state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+// --- VAZİFE SİLME FONKSİYONU ---
+window. deleteTask = async function(taskId) {
+    if (confirm("Bu vazifeyi silmek istediğinize emin misiniz?")) {
+        state.tasks = state.tasks.filter(t => t.id !== taskId);
+        await saveUserData();
+        showNotification("Vazife listeden kaldırıldı.", "success");
+        render();
+    }
+}
+
+// --- GERÇEK DOSYA YÜKLEMELİ KANIT TAMAMLAMA (Modüler SDK) ---
+window.completeTaskWithProof = async function(taskId) {
+    const fileInput = document.getElementById(`file-input-${taskId}`);
+    const textInput = document.getElementById(`text-input-${taskId}`);
     
-    const extraTask = state.tasks.find(t => t.isExtra);
-    if (extraTask && extraTask.completed && state.treeState === 'wilting') {
-        state.treeState = 'growing';
-        state.consecutiveFailures = 0;
-        showNotification("Ek vazife tamamlandı! Ağacınız tekrar yeşerdi. 🌿", "success");
+    let proofValue = "";
+
+    if (fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        
+        try {
+            showNotification("Dosya yükleniyor, lütfen bekleyin...", "info");
+
+            // Firebase modüllerinin global olarak app.js'e aktarıldığından emin olun
+            // (firebase-config.js içerisinde storage instance'ını export etmiş olmalısınız)
+            const storageRef = window.storageRef; // Veya window.storage
+            const fileRef = window.FirebaseStorage.ref(window.storage, `proofs/${state.user.uid}/${Date.now()}_${file.name}`);
+            
+            // Dosyayı yüklüyoruz
+            const snapshot = await window.FirebaseStorage.uploadBytes(fileRef, file);
+            
+            // İndirme URL'sini alıyoruz
+            proofValue = await window.FirebaseStorage.getDownloadURL(snapshot.ref);
+        } catch (error) {
+            console.error("Dosya yükleme hatası:", error);
+            showNotification("Dosya yüklenirken bir hata oluştu!", "error");
+            return;
+        }
+
+    } else if (textInput && textInput.value.trim() !== "") {
+        proofValue = `📝 ${textInput.value.trim()}`;
+    } else {
+        showNotification("Lütfen vazifeyi tamamlamak için dosya seçin veya not yazın!", "error");
+        return;
     }
 
+    const todayStr = getTodayString();
+
+    state.tasks = state.tasks.map(t => {
+        if (t.id === taskId) {
+            return {
+                ...t,
+                completed: true,
+                proofData: proofValue,
+                completedAt: todayStr
+            };
+        }
+        return t;
+    });
+
+    await saveUserData();
+    showNotification("Kanıt başarıyla yüklendi ve kaydedildi! ✅", "success");
+    render();
+}
+
+window.uncompleteTask = async function(taskId) {
+    state.tasks = state.tasks.map(t => {
+        if (t.id === taskId) {
+            return { ...t, completed: false, proofData: null, completedAt: null };
+        }
+        return t;
+    });
     await saveUserData();
     render();
 }

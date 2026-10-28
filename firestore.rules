@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      // Oturum açmış her kullanıcı kendi belgesini okuyabilir/yazabilir
+      // Yetkili veya diğer kullanıcılar grup sorgusu yapabilir
+      allow read, write: if request.auth != null;
+    }
+  }
+}
