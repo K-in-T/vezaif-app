@@ -1,0 +1,97 @@
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+body { background-color: #f4f6f8; color: #333; }
+.screen { display: none; height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
+
+#auth-screen { justify-content: center; align-items: center; background: #e8f5e9; }
+.auth-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 320px; display: flex; flex-direction: column; gap: 1rem; }
+.auth-card input { padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; }
+.auth-card button { padding: 0.8rem; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.auth-card button.secondary-btn { background: #555; }
+
+.app-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 1rem 2rem; border-bottom: 1px solid #ddd; }
+.badge { background: #c8e6c9; color: #1b5e20; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+.header-right button { background: none; border: none; font-size: 1.2rem; cursor: pointer; margin-left: 1rem; color: #555; }
+
+.app-main { flex: 1; padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+.streak-container { font-size: 1.2rem; margin-bottom: 1.5rem; background: white; padding: 0.6rem 1.2rem; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.flame-icon { color: #f57c00; }
+
+.tree-container { position: relative; width: 100%; max-width: 400px; height: 400px; display: flex; justify-content: center; align-items: center; }
+.tree-silhouette { position: relative; text-align: center; }
+.main-tree-icon { font-size: 12rem; color: #388e3c; }
+.tree-branch { position: absolute; background: rgba(255, 255, 255, 0.95); padding: 0.4rem 0.8rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; font-size: 0.9rem; font-weight: 500; border: 1px solid #c8e6c9; transition: transform 0.3s ease; transform-origin: center; }
+.tree-branch:hover { transform: scale(1.08) !important; }
+
+/* Dalların Ağaç Üzerindeki Sabit Konumları */
+.branch-1 { top: 30%; left: -40px; }
+.branch-2 { top: 30%; right: -40px; }
+.branch-3 { top: 50%; left: -60px; }
+.branch-4 { top: 50%; right: -60px; }
+.branch-5 { top: 15%; left: 35%; }
+
+.garden-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1.5rem; width: 100%; max-width: 900px; margin-top: 1rem; }
+.garden-tree-card { background: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+
+.modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); }
+.modal-content { background: white; margin: 10% auto; padding: 2rem; border-radius: 10px; width: 90%; max-width: 400px; position: relative; display: flex; flex-direction: column; gap: 1rem; }
+.close-modal { position: absolute; right: 1rem; top: 1rem; font-size: 1.5rem; cursor: pointer; }
+.add-category-box { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.add-category-box input { flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+.add-category-box button { padding: 0.5rem 1rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; }
+
+.task-actions-box { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem; }
+.extra-task-row { display: flex; justify-content: space-between; align-items: center; }
+.extra-task-row input { width: 60px; padding: 0.3rem; text-align: center; }
+.primary-btn { background: #2e7d32; color: white; border: none; padding: 0.8rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.danger-btn { background: #d32f2f; color: white; border: none; padding: 0.8rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+/* Ayarlar Menüsü İçindeki Seçenek Kartı Stili */
+.setting-card-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #f9fbf9;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid #c8e6c9;
+    transition: all 0.2s ease;
+}
+
+.setting-card-option:hover {
+    background: #e8f5e9;
+    border-color: #81c784;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.setting-card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.setting-card-info strong {
+    font-size: 0.95rem;
+    color: #1b5e20;
+}
+
+.setting-card-info small {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* Hata Mesajı Stili */
+.error-message {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 0.7rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-align: center;
+    border: 1px solid #ffcdd2;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
