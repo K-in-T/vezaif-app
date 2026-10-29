@@ -13,7 +13,8 @@ let state = {
     lastCheckDate: null,
     authStep: 'login',
     tempAuthData: { email: '', pass: '' },
-    tasks: [], // <-- Varsayılan vazifeler 
+    tasks: [], // Kullanıcının seçtiği aktif günlük vazifeler
+    curriculum: [], // Global müfredat havuzu
     students: []
 };
 
@@ -201,6 +202,9 @@ function render() {
                     <button onclick="switchTab('kazanimlar')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'kazanimlar' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 shadow-sm' : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'}">
                         <span>🏆</span> Kazanımlar
                     </button>
+                    <button onclick="switchTab('müfredat')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'müfredat' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 shadow-sm' : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'}">
+    <span>📖</span> Müfredat
+</button>
                     ${state.role === 'sorumlu' ? `
                         <button onclick="switchTab('sorumlu-paneli')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${state.activeTab === 'sorumlu-paneli' ? 'bg-amber-950/40 text-amber-400 border border-amber-800/50 shadow-sm' : 'text-amber-500/80 hover:bg-stone-900 hover:text-amber-400'}">
                             <span>👤</span> Sorumlu Paneli
@@ -221,6 +225,7 @@ function render() {
                 ${state.activeTab === 'dashboard' ? renderDashboard() : ''}
                 ${state.activeTab === 'istatistik' ? renderStats() : ''}
                 ${state.activeTab === 'kazanimlar' ? renderAwards() : ''}
+                ${state.activeTab === 'müfredat' ? renderCurriculumTab() : ''}
                 ${state.activeTab === 'sorumlu-paneli' && state.role === 'sorumlu' ? renderSupervisor() : ''}
                 ${state.activeTab === 'ayarlar' ? renderSettings() : ''}
             </main>
@@ -282,12 +287,15 @@ function renderLoginScreen() {
 }
 
 function renderDashboard() {
+    const completedTasksCount = state.tasks.filter(t => t.completed).length;
+    const totalTasksCount = state.tasks.length;
+
     return `
         <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
             <header class="flex justify-between items-center bg-stone-950 p-6 rounded-2xl border border-stone-800">
                 <div>
                     <h2 class="text-2xl font-bold text-stone-100">Günlük Vazifeler ve Hayat Ağacı</h2>
-                    <p class="text-sm text-stone-400">Vazifelerinizi dosya/not yükleyerek tamamlayın. Gece 00:00'da kontrol edilir.</p>
+                    <p class="text-sm text-stone-400">Müfredattan seçtiğiniz vazifeleri tamamlayın. Gece 00:00'da otomatik kontrol edilir.</p>
                 </div>
                 <div class="flex items-center gap-2 bg-emerald-950/60 border border-emerald-800/60 px-4 py-2 rounded-xl text-emerald-300">
                     <span class="text-sm font-semibold">🔥 Seri (Streak): ${state.streak} Gün</span>
@@ -308,68 +316,37 @@ function renderDashboard() {
                 </h3>
             </div>
 
-            <!-- VAZİFELER LİSTESİ VE YENİ VAZİFE TANIMLAMA -->
+            <!-- VAZİFELER LİSTESİ VE MÜFREDATA YÖNLENDİRME -->
             <div class="bg-stone-950 border border-stone-800 rounded-3xl p-6 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="text-lg font-bold">📋 Günün Vazifeleri</h3>
+                    <button onclick="switchTab('müfredat')" class="text-xs px-3 py-1.5 bg-emerald-900/40 text-emerald-300 border border-emerald-800 rounded-xl hover:bg-emerald-900/60 transition-colors">
+                        📖 Müfredata Git & Vazife Seç
+                    </button>
                 </div>
 
-                <!-- YENİ VAZİFE TANIMLAMA FORMU (Sadeleştirilmiş) -->
-                <form onsubmit="addNewTask(event)" class="flex gap-2">
-                    <input type="text" id="new-task-title" placeholder="Yeni vazife ekle (Örn: Kur'an Cüzü, Risale Okuması)..." required class="flex-1 bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 focus:outline-none focus:border-emerald-500">
-                    
-                    <select id="new-task-category" class="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-emerald-500">
-                        <option value="Kur'an">📖 Kur'an</option>
-                        <option value="Ezber">🎙️ Ezber</option>
-                        <option value="Osmanlıca">📜 Osmanlıca</option>
-                        <option value="Mütalaa">📚 Mütalaa</option>
-                        <option value="Özel">✨ Özel</option>
-                    </select>
-
-                    <button type="submit" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-stone-950 font-bold rounded-xl text-sm transition-colors shadow-lg">Ekle</button>
-                </form>
-
-                <!-- VAZİFELER LİSTESİ -->
-                <div class="space-y-4">
+                <!-- VAZİFELER LİSTESİ (Checkbox ile) -->
+                <div class="space-y-3">
                     ${state.tasks.length > 0 ? state.tasks.map(task => `
-                        <div class="p-5 rounded-2xl bg-stone-900 border ${task.completed ? 'border-emerald-900/50 bg-emerald-950/10' : 'border-stone-800'} space-y-3">
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center gap-3">
+                        <div class="p-4 rounded-2xl bg-stone-900 border ${task.completed ? 'border-emerald-900/50 bg-emerald-950/10' : 'border-stone-800'} flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete(${task.id})" class="w-5 h-5 accent-emerald-600 rounded cursor-pointer">
+                                <div>
                                     <h4 class="font-semibold text-stone-100 ${task.completed ? 'line-through text-stone-400' : ''}">${task.title}</h4>
-                                    <span class="text-xs px-2.5 py-1 rounded-full bg-stone-800 text-stone-300">
-                                        ${task.category}
-                                    </span>
+                                    <span class="text-xs px-2 py-0.5 rounded bg-stone-800 text-stone-400">${task.category}</span>
                                 </div>
-                                <!-- SİLME BUTONU -->
-                                <button onclick="deleteTask(${task.id})" class="text-stone-500 hover:text-red-400 text-xs px-2 py-1 rounded-lg hover:bg-red-950/30 transition-colors">
-                                    🗑️ Sil
-                                </button>
                             </div>
-
-                            <!-- DOSYA VEYA METİN YÜKLEME -->
-                            ${!task.completed ? `
-                                <div class="pt-2 border-t border-stone-800/60 flex flex-col md:flex-row gap-3 items-center">
-                                    <input type="file" id="file-input-${task.id}" class="w-full text-xs text-stone-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-800 file:text-emerald-400 hover:file:bg-stone-700">
-                                    <button onclick="completeTaskWithProof(${task.id})" class="w-full md:w-auto px-4 py-2 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-medium text-xs rounded-xl whitespace-nowrap transition-colors">
-                                        📤 Kanıt Yükle
-                                    </button>
-                                </div>
-                            ` : `
-                                <div class="pt-2 border-t border-emerald-900/40 flex justify-between items-center text-xs">
-                                    <div class="text-emerald-400 font-mono truncate max-w-md">
-                                        Yüklenen: ${task.proofData}
-                                    </div>
-                                    <button onclick="uncompleteTask(${task.id})" class="text-stone-500 hover:text-red-400 underline ml-2">
-                                        Değiştir
-                                    </button>
-                                </div>
-                            `}
+                            <!-- LİSTEDEN ÇIKARMA (SİLME) -->
+                            <button onclick="deleteTask(${task.id})" class="text-stone-500 hover:text-red-400 text-xs px-2 py-1">🗑️ Kaldır</button>
                         </div>
                     `).join('') : `
-                        <div class="text-center py-10 text-stone-500 space-y-2 border border-dashed border-stone-800 rounded-2xl">
-                            <span class="text-3xl">📝</span>
-                            <p class="text-sm font-medium">Henüz eklenmiş bir vazifeniz bulunmuyor.</p>
-                            <p class="text-xs text-stone-600">Yukarıdaki alandan medrese programınıza uygun vazifelerinizi ekleyin.</p>
+                        <div class="text-center py-10 text-stone-500 space-y-3 border border-dashed border-stone-800 rounded-2xl">
+                            <span class="text-3xl">📚</span>
+                            <p class="text-sm font-medium">Günlük programınızda henüz vazife bulunmuyor.</p>
+                            <p class="text-xs text-stone-600">Sorumlunuzun hazırladığı havuzdan derslerinizi seçmek için müfredat sekmesini kullanın.</p>
+                            <button onclick="switchTab('müfredat')" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-stone-950 font-bold rounded-xl text-sm transition-colors">
+                                Müfredata Git
+                            </button>
                         </div>
                     `}
                 </div>
@@ -658,6 +635,58 @@ function renderSettings() {
 }
 
 // --- GLOBAL AKSİYONLAR ---
+
+// --- VARSAYILAN MÜFREDATI YÜKLEME (Tek Seferlik Kurulum) ---
+window.seedDefaultCurriculum = async function() {
+    const defaultItems = [
+        { title: "Kur'an-ı Kerim Cüz Okuması", category: "Kur'an", isGlobal: true },
+        { title: "Ezber Dersi & Tekrarı (Hıfz)", category: "Ezber", isGlobal: true },
+        { title: "Risale-i Nur Mütalaası", category: "Mütalaa", isGlobal: true },
+        { title: "Osmanlıca Metin Okumaları", category: "Osmanlıca", isGlobal: true },
+        { title: "Arapça Sarf / Nahiv Çalışması", category: "Mütalaa", isGlobal: true },
+        { title: "Cevşen / Günlük Evrad Takibi", category: "Özel", isGlobal: true }
+    ];
+
+    try {
+        for (const item of defaultItems) {
+            await setDoc(doc(collection(db, "curriculum")), item);
+        }
+        showNotification("Varsayılan müfredat başarıyla yüklendi! 📚", "success");
+        await loadCurriculum();
+        render();
+    } catch (err) {
+        console.error("Müfredat tohumlama hatası:", err);
+    }
+}
+
+// --- ÖZEL VAZİFE EKLEME (Sadece Ekleyen Görür) ---
+window.addPersonalTask = async function(e) {
+    e.preventDefault();
+    const titleInput = document.getElementById('personal-task-title');
+    const categorySelect = document.getElementById('personal-task-category');
+    
+    const title = titleInput.value.trim();
+    const category = categorySelect.value;
+
+    if (!title) return;
+
+    // Doğrudan kullanıcının kendi günlük aktif görevlerine eklenir
+    const newTask = {
+        id: Date.now(),
+        curriculumId: `custom_${Date.now()}`,
+        title: title,
+        category: category,
+        completed: false,
+        completedAt: null,
+        isPersonal: true // Kişisel olduğunu belirtiyoruz
+    };
+
+    state.tasks.push(newTask);
+    await saveUserData();
+    showNotification("Özel vazifeniz programınıza eklendi! ✨", "success");
+    render();
+}
+
 window.handleAuth = async function(e) {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -721,99 +750,160 @@ window.handleLogout = async function() {
 
 window.switchTab = function(tab) { state.activeTab = tab; render(); }
 
-// Yeni Vazife Ekleme Fonksiyonu
-// --- YENİ VAZİFE EKLEME FONKSİYONU ---
-// --- YENİ VAZİFE EKLEME (Tür seçimi kaldırıldı) ---
-window.addNewTask = async function(e) {
-    e.preventDefault();
-    const titleInput = document.getElementById('new-task-title');
-    const categorySelect = document.getElementById('new-task-category');
-    
-    const newTask = {
-        id: Date.now(),
-        title: titleInput.value.trim(),
-        category: categorySelect.value,
-        completed: false,
-        proofData: null,
-        completedAt: null,
-        isExtra: false
-    };
-
-    state.tasks.push(newTask);
-    await saveUserData();
-    showNotification("Yeni vazife başarıyla eklendi!", "success");
-    render();
+// --- MÜFREDAT VE PROGRAM YÖNETİMİ ---
+async function loadCurriculum() {
+    try {
+        const querySnapshot = await getDocs(collection(db, "curriculum"));
+        state.curriculum = [];
+        querySnapshot.forEach((docSnap) => {
+            state.curriculum.push({ id: docSnap.id, ...docSnap.data() });
+        });
+    } catch (error) {
+        console.error("Müfredat yüklenirken hata:", error);
+    }
 }
 
-// --- VAZİFE SİLME FONKSİYONU ---
-window. deleteTask = async function(taskId) {
-    if (confirm("Bu vazifeyi silmek istediğinize emin misiniz?")) {
-        state.tasks = state.tasks.filter(t => t.id !== taskId);
-        await saveUserData();
-        showNotification("Vazife listeden kaldırıldı.", "success");
+function renderCurriculumTab() {
+    const isSorumlu = state.role === 'sorumlu';
+    return `
+        <div class="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+            <!-- BAŞLIK -->
+            <div class="bg-stone-950 p-6 rounded-2xl border border-stone-800 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-stone-100">📖 Medrese Müfredat Havuzu</h2>
+                    <p class="text-sm text-stone-400">Genel müfredattan ders seçebilir veya kendinize özel kişisel vazifeler oluşturabilirsiniz.</p>
+                </div>
+                ${isSorumlu && state.curriculum.length === 0 ? `
+                    <button onclick="seedDefaultCurriculum()" class="px-3 py-2 bg-amber-950 text-amber-300 border border-amber-800 rounded-xl text-xs font-semibold">
+                        ⚡ Örnek Müfredatı Yükle
+                    </button>
+                ` : ''}
+            </div>
+
+            <!-- SORUMLU İÇİN GENEL MÜFREDAT EKLEME -->
+            ${isSorumlu ? `
+                <div class="bg-stone-950 border border-stone-800 rounded-3xl p-6 space-y-4">
+                    <h3 class="text-lg font-bold text-amber-400">➕ Genel Müfredat Vazifesi Ekle (Herkes Görür)</h3>
+                    <form onsubmit="addCurriculumItem(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <input type="text" id="curr-title" placeholder="Genel Ders Adı..." required class="bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 focus:outline-none focus:border-emerald-500">
+                        <select id="curr-category" class="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-emerald-500">
+                            <option value="Kur'an">📖 Kur'an</option>
+                            <option value="Ezber">🎙️ Ezber</option>
+                            <option value="Osmanlıca">📜 Osmanlıca</option>
+                            <option value="Mütalaa">📚 Mütalaa</option>
+                            <option value="Özel">✨ Özel</option>
+                        </select>
+                        <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-stone-950 font-bold rounded-xl text-sm transition-colors py-2.5">Müfredata Ekle</button>
+                    </form>
+                </div>
+            ` : ''}
+
+            <!-- GENEL MÜFREDAT LİSTESİ -->
+            <div class="bg-stone-950 border border-stone-800 rounded-3xl p-6 space-y-4">
+                <h3 class="text-lg font-bold text-stone-200">🏛️ Genel Medrese Müfredatı</h3>
+                <div class="space-y-3">
+                    ${state.curriculum.length > 0 ? state.curriculum.map(item => {
+                        const isInMyTasks = state.tasks.some(t => t.curriculumId === item.id);
+                        return `
+                            <div class="p-4 bg-stone-900 border border-stone-800 rounded-2xl flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-semibold text-stone-200">${item.title}</h4>
+                                    <span class="text-xs px-2.5 py-0.5 rounded-full bg-stone-800 text-stone-400 mt-1 inline-block">${item.category}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    ${isSorumlu ? `
+                                        <button onclick="deleteCurriculumItem('${item.id}')" class="px-3 py-1.5 bg-red-950/40 text-red-300 border border-red-800/50 rounded-xl text-xs">Sil</button>
+                                    ` : `
+                                        <button onclick="toggleTaskSelection('${item.id}', '${item.title}', '${item.category}')" class="px-4 py-2 rounded-xl text-xs font-semibold ${isInMyTasks ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}">
+                                            ${isInMyTasks ? '✓ Programımda' : '+ Programıma Ekle'}
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    }).join('') : `
+                        <div class="text-center py-6 text-stone-500 text-xs">
+                            Henüz genel müfredat tanımlanmamış.
+                        </div>
+                    `}
+                </div>
+            </div>
+
+            <!-- TALEBE İÇİN ÖZEL (KİŞİSEL) VAZİFE EKLEME FORMU -->
+            <div class="bg-stone-950 border border-stone-800 rounded-3xl p-6 space-y-4">
+                <div>
+                    <h3 class="text-lg font-bold text-emerald-400">✨ Şahsi Ek Vazife Oluştur</h3>
+                    <p class="text-xs text-stone-400">Burada eklediğiniz vazifeler sadece sizin kendi programınızda görünür.</p>
+                </div>
+                <form onsubmit="addPersonalTask(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" id="personal-task-title" placeholder="Kişisel Hedefiniz (Örn: Kitap Okuma)..." required class="bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-sm text-stone-200 focus:outline-none focus:border-emerald-500">
+                    <select id="personal-task-category" class="bg-stone-900 border border-stone-800 rounded-xl px-3 py-2.5 text-sm text-stone-300 focus:outline-none focus:border-emerald-500">
+                        <option value="Kur'an">📖 Kur'an</option>
+                        <option value="Ezber">🎙️ Ezber</option>
+                        <option value="Osmanlıca">📜 Osmanlıca</option>
+                        <option value="Mütalaa">📚 Mütalaa</option>
+                        <option value="Özel">✨ Özel</option>
+                    </select>
+                    <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-bold rounded-xl text-sm transition-colors py-2.5">Programıma Ekle</button>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+window.addCurriculumItem = async function(e) {
+    e.preventDefault();
+    const title = document.getElementById('curr-title').value.trim();
+    const category = document.getElementById('curr-category').value;
+    try {
+        await setDoc(doc(collection(db, "curriculum")), { title, category });
+        showNotification("Müfredata vazife eklendi!", "success");
+        await loadCurriculum();
+        render();
+    } catch (err) {
+        showNotification("Hata oluştu", "error");
+    }
+}
+
+window.deleteCurriculumItem = async function(id) {
+    if (confirm("Bu müfredat maddesini silmek istediğinize emin misiniz?")) {
+        await deleteDoc(doc(db, "curriculum", id));
+        await loadCurriculum();
         render();
     }
 }
 
-// --- GERÇEK DOSYA YÜKLEMELİ KANIT TAMAMLAMA (Modüler SDK) ---
-window.completeTaskWithProof = async function(taskId) {
-    const fileInput = document.getElementById(`file-input-${taskId}`);
-    const textInput = document.getElementById(`text-input-${taskId}`);
-    
-    let proofValue = "";
-
-    if (fileInput && fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        
-        try {
-            showNotification("Dosya yükleniyor, lütfen bekleyin...", "info");
-
-            // Firebase modüllerinin global olarak app.js'e aktarıldığından emin olun
-            // (firebase-config.js içerisinde storage instance'ını export etmiş olmalısınız)
-            const storageRef = window.storageRef; // Veya window.storage
-            const fileRef = window.FirebaseStorage.ref(window.storage, `proofs/${state.user.uid}/${Date.now()}_${file.name}`);
-            
-            // Dosyayı yüklüyoruz
-            const snapshot = await window.FirebaseStorage.uploadBytes(fileRef, file);
-            
-            // İndirme URL'sini alıyoruz
-            proofValue = await window.FirebaseStorage.getDownloadURL(snapshot.ref);
-        } catch (error) {
-            console.error("Dosya yükleme hatası:", error);
-            showNotification("Dosya yüklenirken bir hata oluştu!", "error");
-            return;
-        }
-
-    } else if (textInput && textInput.value.trim() !== "") {
-        proofValue = `📝 ${textInput.value.trim()}`;
+window.toggleTaskSelection = async function(currId, title, category) {
+    const exists = state.tasks.find(t => t.curriculumId === currId);
+    if (exists) {
+        state.tasks = state.tasks.filter(t => t.curriculumId !== currId);
+        showNotification("Vazife programınızdan çıkarıldı.", "info");
     } else {
-        showNotification("Lütfen vazifeyi tamamlamak için dosya seçin veya not yazın!", "error");
-        return;
+        state.tasks.push({
+            id: Date.now(),
+            curriculumId: currId,
+            title,
+            category,
+            completed: false,
+            completedAt: null
+        });
+        showNotification("Vazife programınıza eklendi! 🎯", "success");
     }
-
-    const todayStr = getTodayString();
-
-    state.tasks = state.tasks.map(t => {
-        if (t.id === taskId) {
-            return {
-                ...t,
-                completed: true,
-                proofData: proofValue,
-                completedAt: todayStr
-            };
-        }
-        return t;
-    });
-
     await saveUserData();
-    showNotification("Kanıt başarıyla yüklendi ve kaydedildi! ✅", "success");
     render();
 }
 
-window.uncompleteTask = async function(taskId) {
+// Basit Tik (Check) Atma Fonksiyonu
+window.toggleTaskComplete = async function(taskId) {
+    const todayStr = getTodayString();
     state.tasks = state.tasks.map(t => {
         if (t.id === taskId) {
-            return { ...t, completed: false, proofData: null, completedAt: null };
+            const newCompleted = !t.completed;
+            return {
+                ...t,
+                completed: newCompleted,
+                completedAt: newCompleted ? todayStr : null
+            };
         }
         return t;
     });
