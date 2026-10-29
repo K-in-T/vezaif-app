@@ -55,23 +55,32 @@ async function processDailyCheck() {
         // 1. Günün tüm vazifeleri tamamlanmış mı?
         const allCompleted = state.tasks.length > 0 && state.tasks.every(t => t.completed);
         
-        // 2. Tamamlanan vazifeler arasında ek/kişisel vazife (isPersonal) var mı?
-        const hasExtraTask = state.tasks.some(t => t.completed && t.isPersonal);
+        // 2. Kategori Şartı: Tamamlananlar arasında Kur'an, Osmanlıca ve Mütalaa alanlarından en az birer tane var mı?
+        const completedTasks = state.tasks.filter(t => t.completed);
+        const hasKuran = completedTasks.some(t => t.category === "Kur'an");
+        const hasOsmanlica = completedTasks.some(t => t.category === "Osmanlıca");
+        const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa");
+        
+        const categoryConditionMet = hasKuran && hasOsmanlica && hasMutalaa;
+
+        // 3. Ek/Kişisel vazife (isPersonal) tamamlanmış mı?
+        const hasExtraTask = completedTasks.some(t => t.isPersonal);
 
         let currentIndex = getPhaseLevelIndex(state.treePhase || 'tohum1');
         if (currentIndex === -1) currentIndex = 0;
 
         // Geçen gün sayısı kadar döngüyü işlet
         for (let i = 0; i < daysPassed; i++) {
-            if (allCompleted) {
+            // İlerleme için hem tüm vazifelerin bitmesi hem de Kur'an, Osmanlıca, Mütalaa üçlüsünden en az birer tane yapılması şart
+            if (allCompleted && categoryConditionMet) {
                 if (hasExtraTask) {
-                    // Vazifeler tam + Ek vazife var -> 1 Faz İleri (Meyve sonrasında da sonsuz artar)
+                    // Şartlar tam + Ek vazife var -> 1 Faz İleri
                     currentIndex++;
                 } else {
-                    // Vazifeler tam + Ek vazife yok -> Sabit kalır
+                    // Şartlar tam + Ek vazife yok -> Fazı korur
                 }
             } else {
-                // Vazifeler eksik -> 1 Faz Geri (En az tohum1'de kalır)
+                // Vazifeler eksik veya gerekli kategori dengesi sağlanmamış -> 1 Faz Geri
                 if (currentIndex > 0) currentIndex--;
             }
         }
