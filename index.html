@@ -3,11 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
-    <title>Medrese Gelişim ve İlim Takibi</title>
+    <title>Vezaif</title>
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
+
+    <!-- Tarayıcı Sekme İkonu (Favicon) -->
+    <link rel="icon" type="image/jpeg" href="Gemini_Generated_Image_ef1tnbef1tnbef1t(1).jpg">
+
+    <!-- Apple Cihazlar / Ana Ekran Kısayol İkonu -->
+    <link rel="apple-touch-icon" href="Gemini_Generated_Image_ef1tnbef1tnbef1t(1).jpg">
     
     <!-- Firebase SDK (CDN) -->
     <script type="module">
@@ -28,7 +34,10 @@
 
 <!--
     TODO:
-        [] Ağacın durumlarının görünümü
+        [x] Ağacın durumlarının görünümü
+        [] Unutulan vazifelerin tekrar alınabilmesi
+        [] Vazfelerin tamamlanması için 5/5 gibi parça parça alınması
+        [] Tema değiştirme
         [Değişti] Dosya yükleme ve görüntüleme mantığı
             Bunun yerine Ayarlar ve istatistikler sekmesi gibi 
             bir müfredat sekmesi olacak. Bu müfredatı sorumlu kişiler 
@@ -36,9 +45,6 @@
             seçerek oluşturacaklar. Ana sayfanın dashboardında Vazifeleri tik 
             atarak. Tamamlayacaklar, saat 12'de kontrol edilip Sayaç artırılacak 
             ve istatistikler güncellenip  Geçmiş vazifeler de bu şekilde güncellenecek.
-        [] Kullanıcı profili ve ayarları (Portakal, Elma vs. profil resimleri)
-        [] Kullanıcıların vazifelerini tamamlaması ve istatistiklerin güncellenmesi
-        [] Admin paneli (Kullanıcı yönetimi, Vazife yönetimi, İstatistikler)
         [] Bildirim sistemi (Vazife hatırlatmaları, Ödül bildirimleri)
         [] Mobil uyumluluk ve PWA desteği
         [] Performans optimizasyonu (Lazy loading, Kod bölme)

@@ -52,41 +52,51 @@ async function processDailyCheck() {
     if (state.lastCheckDate && state.lastCheckDate !== today) {
         const daysPassed = getDaysBetween(state.lastCheckDate, today);
         
-        // 1. Günün tüm vazifeleri tamamlanmış mı?
-        const allCompleted = state.tasks.length > 0 && state.tasks.every(t => t.completed);
+        // O gün (veya önceki günlerde) üzerinde çalışılmış/ilerlenmiş parçalar veya tamamlananlar
+        const tasks = state.tasks;
+        const totalTasksCount = tasks.length;
         
-        // 2. Kategori Şartı: Tamamlananlar arasında Kur'an, Osmanlıca ve Mütalaa alanlarından en az birer tane var mı?
-        const completedTasks = state.tasks.filter(t => t.completed);
-        const hasKuran = completedTasks.some(t => t.category === "Kur'an");
-        const hasOsmanlica = completedTasks.some(t => t.category === "Osmanlıca");
-        const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa");
+        // Tüm görevlerin ya tamamen bittiği ya da toplam adımlarının büyük oranda tamamlandığı durum
+        // Veya kullanıcının isteği üzerine: O gün parçaları tamamlanan / ilerletilen vazifeler
+        const completedOrProgressed = tasks.filter(t => t.completed || (t.currentStep > 1));
+        const allCompleted = totalTasksCount > 0 && tasks.every(t => t.completed);
+        
+        // Kategori Şartı: Kur'an, Osmanlıca ve Mütalaa alanlarından en az birer tanesinde parça ilerlemesi veya tamamlama olmalı
+        const hasKuran = completedOrProgressed.some(t => t.category === "Kur'an");
+        const hasOsmanlica = completedOrProgressed.some(t => t.category === "Osmanlıca");
+        const hasMutalaa = completedOrProgressed.some(t => t.category === "Mütalaa");
         
         const categoryConditionMet = hasKuran && hasOsmanlica && hasMutalaa;
 
-        // 3. Ek/Kişisel vazife (isPersonal) tamamlanmış mı?
-        const hasExtraTask = completedTasks.some(t => t.isPersonal);
+        // Ek/Kişisel vazife yapılmış mı?
+        const hasExtraTask = completedOrProgressed.some(t => t.isPersonal && (t.completed || t.currentStep > 1));
 
         let currentIndex = getPhaseLevelIndex(state.treePhase || 'tohum1');
         if (currentIndex === -1) currentIndex = 0;
 
-        // Geçen gün sayısı kadar döngüyü işlet
         for (let i = 0; i < daysPassed; i++) {
-            // İlerleme için hem tüm vazifelerin bitmesi hem de Kur'an, Osmanlıca, Mütalaa üçlüsünden en az birer tane yapılması şart
-            if (allCompleted && categoryConditionMet) {
-                if (hasExtraTask) {
-                    // Şartlar tam + Ek vazife var -> 1 Faz İleri
-                    currentIndex++;
+            // Eğer temel şartlar (kategori dengesi ve aktif çalışma) sağlanmışsa
+            if (allCompleted || (categoryConditionMet && completedOrProgressed.length > 0)) {
+                if (hasExtraTask && allCompleted) {
+                    currentIndex++; // Tamamlama + Ek vazife -> Faz atlar
                 } else {
-                    // Şartlar tam + Ek vazife yok -> Fazı korur
+                    // Parçalar ilerletilmiş, kategori şartı sağlanmış -> Fazı korur veya istikrara göre ilerler
                 }
             } else {
-                // Vazifeler eksik veya gerekli kategori dengesi sağlanmamış -> 1 Faz Geri
+                // Hiçbir şey yapılmamış / eksik kalmış -> 1 Faz Düşer
                 if (currentIndex > 0) currentIndex--;
             }
         }
 
         state.treePhase = getPhaseString(currentIndex);
-        state.tasks = state.tasks.map(t => ({ ...t, completed: false, completedAt: null }));
+        // Not: Çok adımlı (totalSteps > 1) görevler sıfırlanmaz çünkü süreçleri devam ediyordur, 
+        // ancak 1 günlük/tek adımlı görevlerin "completed" bayrakları yeni gün için sıfırlanabilir.
+        state.tasks = state.tasks.map(t => ({
+            ...t,
+            completed: t.currentStep >= t.totalSteps,
+            completedAt: t.currentStep >= t.totalSteps ? t.completedAt : null
+        }));
+        
         state.lastCheckDate = today;
         await saveUserData();
     }
@@ -384,21 +394,44 @@ function renderDashboard() {
                     </button>
                 </div>
 
-                <!-- VAZİFELER LİSTESİ (Checkbox ile) -->
+                <!-- VAZİFELER LİSTESİ (Parçalı / Checkbox ile) -->
                 <div class="space-y-3">
-                    ${state.tasks.length > 0 ? state.tasks.map(task => `
-                        <div class="p-4 rounded-2xl bg-stone-900 border ${task.completed ? 'border-emerald-900/50 bg-emerald-950/10' : 'border-stone-800'} flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete(${task.id})" class="w-5 h-5 accent-emerald-600 rounded cursor-pointer">
-                                <div>
-                                    <h4 class="font-semibold text-stone-100 ${task.completed ? 'line-through text-stone-400' : ''}">${task.title}</h4>
-                                    <span class="text-xs px-2 py-0.5 rounded bg-stone-800 text-stone-400">${task.category} ${task.isPersonal ? '(Şahsi)' : ''}</span>
+                    ${state.tasks.length > 0 ? state.tasks.map(task => {
+                        const current = task.currentStep || 1;
+                        const total = task.totalSteps || 1;
+
+                        return `
+                            <div class="p-4 rounded-2xl bg-stone-900 border ${task.completed ? 'border-emerald-900/50 bg-emerald-950/10' : 'border-stone-800'} flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    ${total === 1 ? `
+                                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete(${task.id})" class="w-5 h-5 accent-emerald-600 rounded cursor-pointer">
+                                    ` : `
+                                        <div class="flex items-center gap-1 font-mono text-xs bg-stone-800 px-2.5 py-1 rounded-lg text-emerald-400 font-bold">
+                                            <span>${current}/${total}</span>
+                                        </div>
+                                    `}
+                                    <div>
+                                        <h4 class="font-semibold text-stone-100 ${task.completed ? 'line-through text-stone-400' : ''}">${task.title}</h4>
+                                        <span class="text-xs px-2 py-0.5 rounded bg-stone-800 text-stone-400">${task.category} ${task.isPersonal ? '(Şahsi)' : ''}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-3">
+                                    <!-- Çok adımlı/parçalı vazifeler için - / + butonları -->
+                                    ${total > 1 ? `
+                                        <div class="flex items-center gap-1 bg-stone-950 border border-stone-800 p-1 rounded-xl">
+                                            <button onclick="updateTaskProgress(${task.id}, -1)" class="w-7 h-7 flex items-center justify-center bg-stone-800 text-stone-300 rounded-lg text-xs hover:bg-stone-700 transition-colors">-</button>
+                                            <span class="text-xs px-2 font-mono text-stone-200 font-semibold">${current}/${total}</span>
+                                            <button onclick="updateTaskProgress(${task.id}, 1)" class="w-7 h-7 flex items-center justify-center bg-emerald-900 text-emerald-200 rounded-lg text-xs hover:bg-emerald-800 transition-colors">+</button>
+                                        </div>
+                                    ` : ''}
+
+                                    <!-- LİSTEDEN ÇIKARMA (SİLME) -->
+                                    <button onclick="deleteTask(${task.id})" class="text-stone-500 hover:text-red-400 text-xs px-2 py-1">🗑️ Kaldır</button>
                                 </div>
                             </div>
-                            <!-- LİSTEDEN ÇIKARMA (SİLME) - DÜZELTİLDİ -->
-                            <button onclick="deleteTask(${task.id})" class="text-stone-500 hover:text-red-400 text-xs px-2 py-1">🗑️ Kaldır</button>
-                        </div>
-                    `).join('') : `
+                        `;
+                    }).join('') : `
                         <div class="text-center py-10 text-stone-500 space-y-3 border border-dashed border-stone-800 rounded-2xl">
                             <span class="text-3xl">📚</span>
                             <p class="text-sm font-medium">Günlük programınızda henüz vazife bulunmuyor.</p>
@@ -1024,6 +1057,35 @@ window.toggleTaskSelection = async function(currId) {
         });
         showNotification("Vazife programınıza eklendi! 🎯", "success");
     }
+    await saveUserData();
+    render();
+}
+
+window.updateTaskProgress = async function(taskId, change) {
+    const today = getTodayString();
+    
+    state.tasks = state.tasks.map(task => {
+        if (task.id === taskId) {
+            let newStep = (task.currentStep || 1) + change;
+            const total = task.totalSteps || 1;
+            
+            if (newStep < 1) newStep = 1;
+            if (newStep > total) newStep = total;
+
+            const isFinished = newStep >= total;
+
+            return {
+                ...task,
+                currentStep: newStep,
+                completed: isFinished,
+                // Parçanın o gün çalışıldığını işaretlemek için tarih tutabiliriz
+                lastProgressDate: today,
+                completedAt: isFinished ? today : null
+            };
+        }
+        return task;
+    });
+
     await saveUserData();
     render();
 }
