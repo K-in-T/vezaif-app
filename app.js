@@ -117,6 +117,13 @@ function getTreePhaseDisplay(phase) {
     return { icon: '🌳', title: 'İlim Ağacı', desc: 'Gelişimi sürdürün.' };
 }
 
+window.showPhaseModal = window.showPhaseModal || false;
+
+window.togglePhaseModal = function() {
+    window.showPhaseModal = !window.showPhaseModal;
+    render();
+}
+
 function getTodayString() {
     return new Date().toISOString().split('T')[0];
 }
@@ -234,6 +241,21 @@ async function saveUserData() {
     }
 }
 
+// --- 1 AY (30 GÜN) KİLİT KONTROLÜ ---
+function isTaskLockedByTime(task) {
+    if (!task.completed || !task.completedAt) return false;
+    
+    const completedDate = new Date(task.completedAt);
+    const today = new Date();
+    
+    // Gün farkını hesapla
+    const diffTime = today - completedDate;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    
+    // Eğer üzerinden 30 günden (1 aydan) az bir süre geçtiyse kilitli kalır
+    return diffDays < 30;
+}
+
 // --- DUOLİNGO TARZI AYDINLIK GÜNDÜZ MODU & SABİT NAVİGASYON MİMARİSİ ---
 function render() {
     const mainElement = document.querySelector('main');
@@ -335,10 +357,12 @@ function renderLoginScreen() {
 function renderDashboard() {
     let totalStepsSum = 0;
     let completedStepsSum = 0;
+    
     state.tasks.forEach(t => {
-        totalStepsSum += (t.totalSteps || 1);
-        completedStepsSum += (t.currentStep || (t.completed ? 1 : 0));
+        totalStepsSum += 1;
+        completedStepsSum += (t.completed ? 1 : 0);
     });
+    
     const progressPercent = totalStepsSum > 0 ? Math.round((completedStepsSum / totalStepsSum) * 100) : 0;
     const treeInfo = getTreePhaseDisplay(state.treePhase || 'tohum1');
 
@@ -370,8 +394,16 @@ function renderDashboard() {
                 </div>
             </header>
 
-            <!-- AĞAÇ ALANI -->
-            <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-8 text-center relative overflow-hidden shadow-sm">
+            <!-- AĞAÇ ALANI & FAZ MODALI -->
+            <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-8 text-center relative overflow-hidden shadow-sm space-y-4">
+                
+                <!-- Info Butonu -->
+                <div class="absolute top-4 right-4 z-10">
+                    <button onclick="togglePhaseModal()" class="w-9 h-9 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 border-2 border-sky-200 border-b-4 border-b-sky-300 flex items-center justify-center text-xs font-black transition-all shadow-sm active:translate-y-0.5" title="Faz Aşamaları">
+                        ℹ️
+                    </button>
+                </div>
+
                 <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-64 bg-emerald-100/60 rounded-full blur-2xl pointer-events-none"></div>
 
                 <div class="w-24 h-24 mx-auto rounded-3xl text-6xl flex items-center justify-center mb-4 bg-gradient-to-b from-emerald-100 to-emerald-200 border-2 border-emerald-300 border-b-4 border-b-emerald-400 shadow-md transform hover:scale-105 transition-transform duration-300">
@@ -384,6 +416,23 @@ function renderDashboard() {
                 <div class="w-full max-w-md mx-auto bg-stone-100 h-4 rounded-full mt-6 overflow-hidden p-0.5 border-2 border-stone-200 shadow-inner">
                     <div class="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-sm" style="width: ${progressPercent}%"></div>
                 </div>
+
+                <!-- FAZ AŞAMALARI BİLGİ MODALI (AÇILIR KAPANIR) -->
+                ${window.showPhaseModal ? `
+                    <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-2xl p-5 space-y-2 text-xs text-sky-900 text-left animate-fadeIn mt-4 shadow-sm">
+                        <div class="flex justify-between items-center font-black border-b-2 border-sky-200 pb-2">
+                            <span class="text-sm">🌳 İlim Ağacı Faz Basamakları</span>
+                            <button onclick="togglePhaseModal()" class="px-2.5 py-1 bg-white rounded-xl border border-sky-200 text-sky-700 font-black">Kapat X</button>
+                        </div>
+                        <ul class="space-y-1.5 pl-4 list-disc font-medium">
+                            <li><strong>Tohum Evresi (1, 2, 3):</strong> İlk adımlar ve toprak altı hazırlık basamakları.</li>
+                            <li><strong>Filiz Evresi (1, 2, 3):</strong> İstikrarla birlikte fidanın baş gösterdiği dönem.</li>
+                            <li><strong>Fide Evresi (1, 2, 3):</strong> Köklerin sağlamlaşıp boy attığı aşamalar.</li>
+                            <li><strong>Çiçek Evresi (1, 2, 3):</strong> Gayretlerin meyve vermeye başladığı manevi açılım.</li>
+                            <li><strong>Meyve Evresi (1, 2, ...):</strong> Zirve ilim dönemi, sınırsız seviye artışı.</li>
+                        </ul>
+                    </div>
+                ` : ''}
             </div>
 
             <!-- VAZİFELER LİSTESİ -->
@@ -398,38 +447,43 @@ function renderDashboard() {
                     </button>
                 </div>
 
-<div class="space-y-3.5">
-    ${state.tasks.length > 0 ? state.tasks.map(task => `
-        <div class="p-4 md:p-5 rounded-2xl ${task.completed ? 'bg-emerald-50/80 border-2 border-emerald-300 border-b-4 border-b-emerald-400' : 'bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300'} transition-all flex items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <!-- Tek tıkla tamamlamayı sağlayan Checkbox -->
-                <label class="relative flex items-center justify-center cursor-pointer">
-                    <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete(${task.id})" class="peer sr-only">
-                    <div class="w-8 h-8 rounded-xl bg-white border-2 border-stone-300 border-b-4 border-b-stone-400 peer-checked:bg-emerald-500 peer-checked:border-emerald-600 peer-checked:border-b-emerald-700 flex items-center justify-center transition-all shadow-sm">
-                        <svg class="w-5 h-5 text-white scale-0 peer-checked:scale-100 transition-transform font-black" fill="none" stroke="currentColor" stroke-width="3.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                </label>
-                <div class="space-y-1">
-                    <h4 class="font-bold text-sm text-slate-800 ${task.completed ? 'line-through text-slate-400' : ''}">${task.title}</h4>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700 uppercase tracking-wider">${task.category}</span>
-                        ${task.isPersonal ? '<span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">Şahsi</span>' : ''}
-                    </div>
-                </div>
-            </div>
+                <div class="space-y-3.5">
+                    ${state.tasks.length > 0 ? state.tasks.map(task => {
+                        const isLocked = isTaskLockedByTime(task);
+                        return `
+                            <div class="p-4 md:p-5 rounded-2xl ${task.completed ? 'bg-emerald-50/80 border-2 border-emerald-300 border-b-4 border-b-emerald-400' : 'bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300'} transition-all flex items-center justify-between gap-4">
+                                <div class="flex items-center gap-4">
+                                    <!-- Checkbox (1 ay kuralına göre kilitli/pasif olabilir) -->
+                                    <label class="relative flex items-center justify-center ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
+                                        <input type="checkbox" ${task.completed ? 'checked' : ''} ${isLocked ? 'disabled' : ''} onchange="toggleTaskComplete(${task.id})" class="peer sr-only">
+                                        <div class="w-8 h-8 rounded-xl bg-white border-2 border-stone-300 border-b-4 border-b-stone-400 peer-checked:bg-emerald-500 peer-checked:border-emerald-600 peer-checked:border-b-emerald-700 flex items-center justify-center transition-all shadow-sm">
+                                            <svg class="w-5 h-5 text-white scale-0 peer-checked:scale-100 transition-transform font-black" fill="none" stroke="currentColor" stroke-width="3.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        </div>
+                                    </label>
+                                    <div class="space-y-1">
+                                        <h4 class="font-bold text-sm text-slate-800 ${task.completed ? 'line-through text-slate-400' : ''}">
+                                            ${task.title} ${isLocked ? '<span class="text-[10px] text-amber-600 font-semibold">(1 Ay Kilitli)</span>' : ''}
+                                        </h4>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700 uppercase tracking-wider">${task.category}</span>
+                                            ${task.isPersonal ? '<span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">Şahsi</span>' : ''}
+                                        </div>
+                                    </div>
+                                </div>
 
-            <!-- Silme Butonu -->
-            <button onclick="deleteTask(${task.id})" class="w-9 h-9 flex items-center justify-center rounded-xl bg-stone-100 hover:bg-rose-100 text-stone-400 hover:text-rose-600 border border-stone-200 hover:border-rose-300 transition-all text-xs" title="Kaldır">
-                🗑️
-            </button>
-        </div>
-    `).join('') : `
-        <div class="text-center py-12 px-4 border-2 border-dashed border-stone-300 rounded-3xl bg-stone-50 space-y-4">
-            <p class="text-sm font-bold text-slate-700">Programınızda henüz vazife bulunmuyor.</p>
-            <button onclick="switchTab('müfredat')" class="px-6 py-3 bg-emerald-500 text-white font-black rounded-2xl text-sm shadow-md">Müfredata Git</button>
-        </div>
-    `}
-</div>
+                                <!-- Silme Butonu -->
+                                <button onclick="deleteTask(${task.id})" class="w-9 h-9 flex items-center justify-center rounded-xl bg-stone-100 hover:bg-rose-100 text-stone-400 hover:text-rose-600 border border-stone-200 hover:border-rose-300 transition-all text-xs" title="Kaldır">
+                                    🗑️
+                                </button>
+                            </div>
+                        `;
+                    }).join('') : `
+                        <div class="text-center py-12 px-4 border-2 border-dashed border-stone-300 rounded-3xl bg-stone-50 space-y-4">
+                            <p class="text-sm font-bold text-slate-700">Programınızda henüz vazife bulunmuyor.</p>
+                            <button onclick="switchTab('müfredat')" class="px-6 py-3 bg-emerald-500 text-white font-black rounded-2xl text-sm shadow-md">Müfredata Git</button>
+                        </div>
+                    `}
+                </div>
             </div>
         </div>
     `;
@@ -853,7 +907,7 @@ function renderCurriculumTab() {
                 </div>
             </div>
 
-            <!-- KAPSAMLI YÖNERGE & KURALLAR PANELİ -->
+            <!-- Yönerge Paneli -->
             ${isInfoOpen ? `
                 <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-3xl p-6 md:p-8 space-y-4 animate-fadeIn relative shadow-sm">
                     <div class="flex justify-between items-center border-b-2 border-sky-200 pb-3">
@@ -866,42 +920,30 @@ function renderCurriculumTab() {
                     <div class="space-y-3 text-xs text-sky-900 font-medium leading-relaxed">
                         <div class="bg-white/80 p-4 rounded-2xl border border-sky-200 space-y-1">
                             <strong class="text-sky-950 font-black block text-sm">1. Temel Üçlü Şartı (Koruma Kuralı):</strong>
-                            <p>Sistemin sürdürülebilir olması ve ağacınızın kurumaması için her gün mutlaka <strong>Kur'an</strong>, <strong>Mütalaa</strong> ve <strong>Yazı (Osmanlıca)</strong> alanlarının <em>her birinden</em> en az birer vazife tamamlamalısınız.</p>
+                            <p>Sistemin sürdürülebilir olması için her gün mutlaka <strong>Kur'an</strong>, <strong>Mütalaa</strong> ve <strong>Yazı (Osmanlıca)</strong> alanlarının <em>her birinden</em> en az birer vazife tamamlamalısınız.</p>
                         </div>
-
                         <div class="bg-white/80 p-4 rounded-2xl border border-sky-200 space-y-1">
-                            <strong class="text-sky-950 font-black block text-sm">2. Seviye Sıfırlanma (Ceza) Durumu:</strong>
-                            <p>Eğer yukarıda belirtilen üç temel alandan biri bile o gün eksik kalırsa, gece kontrol mekanizması devreye girer ve ağacınızın seviyesi doğrudan başa (en alt basamak olan <strong>tohum1</strong> evresine) sıfırlanır.</p>
+                            <strong class="text-sky-950 font-black block text-sm">2. Seviye Sıfırlanma Durumu:</strong>
+                            <p>Eğer bu üç temel alandan biri bile eksik kalırsa, ağacınızın seviyesi başa (en alt basamak olan <strong>tohum1</strong> evresine) sıfırlanır.</p>
                         </div>
-
                         <div class="bg-white/80 p-4 rounded-2xl border border-sky-200 space-y-1">
-                            <strong class="text-sky-950 font-black block text-sm">3. Seviye Atlama ve İlerleme Kuralı:</strong>
-                            <p>Üç temel alanın şartını yerine getirdikten sonra, programınıza eklediğiniz <strong>ekstra veya şahsi vazifeleri</strong> de tamamlarsanız ağacınız bir üst seviyeye yükselir.</p>
+                            <strong class="text-sky-950 font-black block text-sm">3. Müfredat Kilit Kuralı:</strong>
+                            <p>Müfredattan tamamladığınız vazifeler kilitlenir ve tekrar eklenemez. Ancak üzerinden 1 ay (30 gün) geçen tamamlanmış vazifeler yeniden aktifleşerek tekrar yapılabilir hale gelir.</p>
                         </div>
-
-                        <div class="bg-white/80 p-4 rounded-2xl border border-sky-200 space-y-1">
-                            <strong class="text-sky-950 font-black block text-sm">4. Evre Yapısı ve Meyve Dönemi:</strong>
-                            <p>Evreler 3'erli aşamalar halinde (Tohum 1-3, Filiz 1-3, Fide 1-3, Çiçek 1-3) ilerler. Bu temel aşamaları başarıyla geçtiğinizde, ilmin olgunluk dönemi olan ve seviyesi sınırsız olarak artan <strong>Meyve</strong> evrelerine ulaşırsınız.</p>
                     </div>
                 </div>
             ` : ''}
 
-            <!-- 10 KUR SEÇİM KAYDIRMASI (Yatay Scroll) -->
-<div class="bg-white p-4 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 shadow-sm overflow-x-auto flex items-center gap-2">
-    ${STATIC_CURRICULUM.map(course => {
-        const isSelected = window.selectedCourseLevel === course.level;
-        return `
-            <button onclick="setCourseLevel(${course.level})" class="px-4 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                isSelected ? 'bg-emerald-500 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm' :
-                'bg-stone-50 text-slate-700 hover:text-slate-900 border-2 border-stone-200'
-            }">
-                📖 ${course.level}. Kur
-            </button>
-        `;
-    }).join('')}
-</div>
+            <!-- 10 Kur Seçim Kaydırması -->
+            <div class="bg-white p-4 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 shadow-sm overflow-x-auto flex items-center gap-2">
+                ${STATIC_CURRICULUM.map(course => `
+                    <button onclick="setCourseLevel(${course.level})" class="px-4 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${window.selectedCourseLevel === course.level ? 'bg-emerald-500 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm' : 'bg-stone-50 text-slate-500 hover:text-slate-800 border-2 border-stone-200'}">
+                        📖 ${course.level}. Kur
+                    </button>
+                `).join('')}
+            </div>
 
-            <!-- SEÇİLİ KURUN DETAYLARI VE VAZİFELER -->
+            <!-- Seçili Kurun Detayları ve Vazifeler -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
                 <div class="border-b-2 border-stone-100 pb-4">
                     <span class="text-[11px] font-black px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full font-mono">Seviye: ${currentCourse.level}. Kur</span>
@@ -911,15 +953,31 @@ function renderCurriculumTab() {
 
                 <div class="space-y-3.5">
                     ${currentCourse.tasks.map(item => {
-                        const isInMyTasks = state.tasks.some(t => t.curriculumId === item.id);
+                        // Kullanıcının görevler listesinde bu müfredat dersi var mı?
+                        const existingTask = state.tasks.find(t => t.curriculumId === item.id);
+                        
+                        // Tamamlanmış ve süre kuralına (1 ay) göre hala kilitli mi?
+                        const isCompletedAndLocked = existingTask && existingTask.completed && isTaskLockedByTime(existingTask);
+                        
+                        // Aktif olarak programda ekli mi (ama henüz tamamlanmamış veya süresi dolmuş)?
+                        const isInProgramActive = existingTask && (!existingTask.completed || !isTaskLockedByTime(existingTask));
+
                         return `
                             <div class="p-4 bg-stone-50 border-2 border-stone-200 rounded-2xl flex justify-between items-center">
                                 <div class="space-y-1">
                                     <h5 class="font-bold text-sm text-slate-800">${item.title}</h5>
-                                    <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700 uppercase tracking-wider">${item.category}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700 uppercase tracking-wider">${item.category}</span>
+                                        ${isCompletedAndLocked ? '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">🔒 Tamamlandı (Kilitli)</span>' : ''}
+                                    </div>
                                 </div>
-                                <button onclick="toggleTaskSelection('${item.id}')" class="px-4 py-2 rounded-2xl text-xs font-black transition-all ${isInMyTasks ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300' : 'bg-emerald-500 hover:bg-emerald-400 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm'}">
-                                    ${isInMyTasks ? '✓ Programımda' : '+ Programıma Ekle'}
+                                
+                                <button onclick="toggleTaskSelection('${item.id}')" ${isCompletedAndLocked ? 'disabled' : ''} class="px-4 py-2 rounded-2xl text-xs font-black transition-all ${
+                                    isCompletedAndLocked ? 'bg-stone-200 text-stone-400 border-2 border-stone-300 cursor-not-allowed opacity-70' :
+                                    isInProgramActive ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300' : 
+                                    'bg-emerald-500 hover:bg-emerald-400 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm'
+                                }">
+                                    ${isCompletedAndLocked ? '🔒 Tamamlandı' : isInProgramActive ? '✓ Programımda' : '+ Programıma Ekle'}
                                 </button>
                             </div>
                         `;
@@ -927,7 +985,7 @@ function renderCurriculumTab() {
                 </div>
             </div>
 
-            <!-- ŞAHSİ VAZİFE EKLEME -->
+            <!-- Şahsi Vazife Ekleme -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
                 <div>
                     <h3 class="text-lg font-black text-slate-800">✨ Şahsi Ek Vazife Oluştur</h3>
@@ -957,44 +1015,43 @@ window.setCourseLevel = function(level) {
     render();
 }
 
-// Müfredattan ders eklerken kural kontrolü
 window.toggleTaskSelection = async function(currId) {
     let targetCourse = null;
     let foundItem = null;
     
     for (const course of STATIC_CURRICULUM) {
         const match = course.tasks.find(t => t.id === currId);
-        if (match) { 
-            targetCourse = course;
-            foundItem = match; 
-            break; 
-        }
+        if (match) { targetCourse = course; foundItem = match; break; }
     }
+    if (!foundItem) return;
+
+    const existingIndex = state.tasks.findIndex(t => t.curriculumId === currId);
     
-    if (!foundItem || !targetCourse) return;
-
-    // TAMAMLAYICI KURAL KONTROLÜ: Alt kur bitmeden üst kurdan ders eklenemez!
-    if (targetCourse.level > window.userUnlockedLevel) {
-        showNotification(`Kural gereği alt kurlar bitmeden üst kur vazifeleri eklenemez (${window.userUnlockedLevel}. kurda bulunuyorsunuz).`, "error");
-        return;
-    }
-
-    const exists = state.tasks.find(t => t.curriculumId === currId);
-    if (exists) {
-        state.tasks = state.tasks.filter(t => t.curriculumId !== currId);
+    if (existingIndex !== -1) {
+        const existingTask = state.tasks[existingIndex];
+        // Eğer görev tamamlanmış ve 1 ay kuralı gereği kilitliyse müfredattan çıkarılamaz/değiştirilemez
+        if (existingTask.completed && isTaskLockedByTime(existingTask)) {
+            showNotification("Bu vazife tamamlanmış ve kilitlidir, silinemez!", "error");
+            return;
+        }
+        
+        // Normal durum: Programdan çıkar
+        state.tasks.splice(existingIndex, 1);
         showNotification("Vazife programınızdan çıkarıldı.", "info");
     } else {
+        // Yeni ekle
         state.tasks.push({
             id: Date.now(),
             curriculumId: currId,
             title: foundItem.title,
             category: foundItem.category,
-            level: targetCourse.level,
+            level: targetCourse ? targetCourse.level : 1,
             completed: false,
             completedAt: null
         });
         showNotification("Vazife programınıza eklendi! 🎯", "success");
     }
+    
     await saveUserData();
     render();
 }
