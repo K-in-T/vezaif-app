@@ -256,7 +256,6 @@ function isTaskLockedByTime(task) {
     return diffDays < 30;
 }
 
-// --- DUOLİNGO TARZI AYDINLIK GÜNDÜZ MODU & SABİT NAVİGASYON MİMARİSİ ---
 function render() {
     const mainElement = document.querySelector('main');
     const currentScrollTop = mainElement ? mainElement.scrollTop : 0;
