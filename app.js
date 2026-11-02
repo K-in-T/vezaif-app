@@ -14,8 +14,10 @@ let state = {
     authStep: 'login',
     tempAuthData: { email: '', pass: '' },
     tasks: [], // Kullanıcının seçtiği aktif günlük vazifeler
-    curriculum: [], // Global müfredat havuzu
-    students: []
+    completedHistory: [], // TAMAMLANAN GEÇMİŞ VAZİFELER ARŞİVİ (30 gün kilit kuralı & istatistikler için)
+    curriculum: [], 
+    students: [],
+    journals: [],
 };
 
 // --- DİNAMİK AĞAÇ FAZLARI MİMARİSİ ---
@@ -62,7 +64,6 @@ async function processDailyCheck() {
         const coreCategoriesMet = hasKuran && hasMutalaa && hasYazi;
         
         // Şart 2: Bunlardan haricinde (ekstra) başka bir vazife yapılmış mı?
-        // (Toplam tamamlanan sayısı 3'ten fazlaysa veya şahsi/özel/ezber gibi farklı kategoriler varsa)
         const hasExtraTask = completedTasks.length > 3 || completedTasks.some(t => t.isPersonal || t.category === "Ezber" || t.category === "Özel");
 
         let currentIndex = getPhaseLevelIndex(state.treePhase || 'tohum1');
@@ -70,25 +71,28 @@ async function processDailyCheck() {
         for (let i = 0; i < daysPassed; i++) {
             if (coreCategoriesMet) {
                 if (hasExtraTask) {
-                    // Üç temel şart tamam + ekstra vazife var -> Seviye Atlar
                     currentIndex++;
-                } else {
-                    // Üç temel şart tamam, ekstra yok -> Seviyesini Korur (currentIndex değişmez)
                 }
             } else {
-                // Üç temel şarttan biri veya hepsi eksik -> Seviyesi Sıfırlanır (En başa, tohum1'e düşer)
-                currentIndex = 0; 
+                currentIndex = 0; // Şartlar sağlanmadıysa Tohum1'e sıfırlanır
             }
         }
 
         state.treePhase = getPhaseString(currentIndex);
         
-        // Yeni gün için görevlerin tamamlanma durumlarını sıfırlayabilirsiniz (İsteğe bağlı)
-        state.tasks = state.tasks.map(t => ({
-            ...t,
-            completed: false,
-            completedAt: null
-        }));
+        // --- ARŞİVLEME VE DASHBOARD TEMİZLEME MANTIĞI ---
+        if (!state.completedHistory) state.completedHistory = [];
+        
+        // Tamamlanan görevleri kalıcı geçmişe aktar
+        completedTasks.forEach(task => {
+            state.completedHistory.push({
+                ...task,
+                completedAt: task.completedAt || state.lastCheckDate || today
+            });
+        });
+
+        // Dashboard'u temizle (Sadece henüz tamamlanmamış aktif görevleri tut)
+        state.tasks = tasks.filter(t => !t.completed);
         
         state.lastCodeDate = today;
         state.lastCheckDate = today;
@@ -153,7 +157,6 @@ function showNotification(message, type = 'error') {
     }, 3500);
 }
 
-// Kullanıcı verisini çekerken döküman yoksa otomatik oluşturan fonksiyon
 async function loadUserData(userUid) {
     try {
         const userRef = doc(db, "users", userUid);
@@ -161,19 +164,21 @@ async function loadUserData(userUid) {
 
         if (userSnap.exists()) {
             const data = userSnap.data();
-            // Firestore'da role alanı neyse onu al, yoksa 'normal' yap
             state.role = data.role || 'normal';
             state.treePhase = data.treePhase || 'tohum1';
             state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+            state.completedHistory = Array.isArray(data.completedHistory) ? data.completedHistory : [];
+            state.journals = Array.isArray(data.journals) ? data.journals : [];
             state.lastCheckDate = data.lastCheckDate || null;
             state.streak = data.streak || 0;
         } else {
-            // Eğer döküman yoksa varsayılan oluştur
             const defaultUserData = {
                 email: state.user ? state.user.email : '',
                 role: 'normal',
                 treePhase: 'tohum1',
                 tasks: [],
+                completedHistory: [],
+                journals: [],
                 streak: 0,
                 lastCheckDate: getTodayString(),
                 createdAt: new Date().toISOString()
@@ -183,6 +188,8 @@ async function loadUserData(userUid) {
             state.role = defaultUserData.role;
             state.treePhase = defaultUserData.treePhase;
             state.tasks = defaultUserData.tasks;
+            state.completedHistory = defaultUserData.completedHistory;
+            state.journals = defaultUserData.journals;
             state.lastCheckDate = defaultUserData.lastCheckDate;
         }
     } catch (err) {
@@ -194,10 +201,7 @@ async function loadUserData(userUid) {
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         state.user = user;
-        // Önce verileri yükle (role bilgisi burada state.role'e atanır)
         await loadUserData(user.uid);
-        
-        // Eğer okunan rol sorumlu ise talebeleri hemen çek
         if (state.role === 'sorumlu') {
             await loadStudents();
         }
@@ -220,8 +224,8 @@ async function loadStudents() {
             }
         });
     } catch (error) {
-        console.warn("Talebe listesi yüklenemedi (Güvenlik kuralları kısıtlı olabilir):", error.message);
-        state.students = []; // Uygulamanın çökmesini önler
+        console.warn("Talebe listesi yüklenemedi:", error.message);
+        state.students = [];
     }
 }
 
@@ -234,26 +238,154 @@ async function saveUserData() {
             consecutiveFailures: state.consecutiveFailures,
             treeState: state.treeState,
             lastCheckDate: state.lastCheckDate,
-            tasks: state.tasks
+            tasks: state.tasks,
+            completedHistory: state.completedHistory,
+            journals: state.journals
         });
     } catch (error) {
         console.error("Veri kaydedilirken hata:", error);
     }
 }
 
-// --- 1 AY (30 GÜN) KİLİT KONTROLÜ ---
+// --- 1 AY (30 GÜN) KİLİT KONTROLÜ (Hem Aktif Hem de Arşivdeki Görevleri Kontrol Eder) ---
+function isCurriculumItemLocked(currId) {
+    if (!state.completedHistory) state.completedHistory = [];
+    
+    // 1. Arşivde bu müfredat kimliğine (curriculumId) sahip ve son 30 gün içinde tamamlanmış bir kayıt var mı?
+    const historyItem = state.completedHistory.find(h => h.curriculumId === currId);
+    if (historyItem && historyItem.completedAt) {
+        const completedDate = new Date(historyItem.completedAt);
+        const today = new Date();
+        const diffDays = (today - completedDate) / (1000 * 60 * 60 * 24);
+        if (diffDays < 30) return true;
+    }
+
+    // 2. Şayet aktif listede bugün tamamlandıysa
+    const activeTask = state.tasks.find(t => t.curriculumId === currId && t.completed);
+    if (activeTask) return true;
+
+    return false;
+}
+
 function isTaskLockedByTime(task) {
     if (!task.completed || !task.completedAt) return false;
-    
     const completedDate = new Date(task.completedAt);
     const today = new Date();
-    
-    // Gün farkını hesapla
-    const diffTime = today - completedDate;
-    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    
-    // Eğer üzerinden 30 günden (1 aydan) az bir süre geçtiyse kilitli kalır
+    const diffDays = (today - completedDate) / (1000 * 60 * 60 * 24);
     return diffDays < 30;
+}
+
+// --- GEÇİCİ TEST SİMÜLASYONU ---
+window.testProcessDailyCheck = async function() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    state.lastCheckDate = yesterday.toISOString().split('T')[0];
+
+    showNotification("Gün atlatma simülasyonu çalıştırılıyor...", "info");
+    await processDailyCheck();
+    showNotification("Gün atlatıldı! Tamamlananlar geçmişe arşivlendi ve ekran temizlendi. 🌳", "success");
+    render();
+}
+
+// --- GÜNLÜK & VAKİT ANALİZİ SEKMESİ ---
+function renderJournalTab() {
+    if (!state.journals) state.journals = [];
+
+    return `
+        <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
+            <div class="bg-white p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 flex justify-between items-center gap-4 shadow-sm">
+                <div>
+                    <h2 class="text-xl font-black text-slate-800">✒️ Günlük & Vakit Analizi</h2>
+                    <p class="text-xs text-slate-500 font-medium">Gününü nasıl geçirdin? Vaktini tefekkür et, muhasebeni yap.</p>
+                </div>
+                <button onclick="switchTab('dashboard')" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border-2 border-stone-300 border-b-4 border-b-stone-400 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-2 whitespace-nowrap">
+                    <span>📋</span> Vazife Listesine Dön
+                </button>
+            </div>
+
+            <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
+                <h3 class="text-lg font-black text-slate-800">📝 Bugünkü Vakit Muhasebesi</h3>
+                
+                <form onsubmit="saveJournalEntry(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Günün Özeti & Vakit Değerlendirmesi</label>
+                        <textarea id="journal-content" rows="4" placeholder="Bugün ilme, ibadete ve günlük işlere ne kadar vakit ayırdım? Neleri iyi yaptım, neleri eksik bıraktım..." required class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl p-4 text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-500 leading-relaxed"></textarea>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="w-full md:w-auto flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-600">Günün Verimlilik Skoru:</span>
+                            <select id="journal-score" class="bg-stone-50 border-2 border-stone-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
+                                <option value="🌟 Mükemmel">🌟 Mükemmel (Dolu dolu)</option>
+                                <option value="👍 İyi" selected>👍 İyi (İstikrarlı)</option>
+                                <option value="⚠️ Orta">⚠️ Orta (Geliştirilmeli)</option>
+                                <option value="❌ Verimsiz">❌ Verimsiz (Ziyan oldu)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-black border-2 border-emerald-600 border-b-4 border-b-emerald-700 rounded-2xl text-sm transition-all shadow-md active:translate-y-0.5">
+                            Günlüğü Kaydet
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
+                <h3 class="text-lg font-black text-slate-800">📚 Geçmiş Vakit Analizlerim</h3>
+
+                <div class="space-y-4">
+                    ${state.journals && state.journals.length > 0 ? state.journals.map((entry, index) => `
+                        <div class="p-5 bg-stone-50 border-2 border-stone-200 rounded-2xl space-y-2 relative">
+                            <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+                                <span class="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-0.5 rounded-full border border-emerald-300 font-mono">${entry.date}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700">${entry.score}</span>
+                                    <button onclick="deleteJournalEntry(${index})" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1 transition-colors" title="Sil">🗑️</button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-700 font-medium whitespace-pre-line leading-relaxed">${entry.content}</p>
+                        </div>
+                    `).join('') : `
+                        <div class="text-center py-10 border-2 border-dashed border-stone-300 rounded-2xl bg-stone-50">
+                            <p class="text-xs font-bold text-slate-500">Henüz kaydedilmiş bir vakit analizi bulunmuyor. İlk günlüğünü yukarıdan yazabilirsin!</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+window.saveJournalEntry = async function(event) {
+    event.preventDefault();
+    const content = document.getElementById('journal-content').value.trim();
+    const score = document.getElementById('journal-score').value;
+    if (!content) return;
+
+    const options = { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' };
+    const dateStr = new Date().toLocaleDateString('tr-TR', options);
+
+    if (!state.journals) state.journals = [];
+
+    state.journals.unshift({
+        date: dateStr,
+        content: content,
+        score: score,
+        timestamp: Date.now()
+    });
+
+    await saveUserData();
+    showNotification("Vakit analizi kaydedildi! ✒️", "success");
+    render();
+}
+
+window.deleteJournalEntry = async function(index) {
+    if (confirm("Bu günlük kaydını silmek istediğinize emin misiniz?")) {
+        state.journals.splice(index, 1);
+        await saveUserData();
+        showNotification("Günlük silindi.", "info");
+        render();
+    }
 }
 
 function render() {
@@ -270,21 +402,18 @@ function render() {
 
     app.innerHTML = `
         <div class="w-full h-screen flex flex-col bg-stone-100 text-slate-800 overflow-hidden font-sans">
-
-            <!-- 2. ANA İÇERİK ALANI (Boşluklar fixed menüler için ayarlandı) -->
             <main class="w-full flex-1 overflow-y-auto p-4 md:p-8 pb-28 pt-6 bg-stone-100">
                 ${state.activeTab === 'dashboard' ? renderDashboard() : ''}
                 ${state.activeTab === 'istatistik' ? renderStats() : ''}
                 ${state.activeTab === 'kazanimlar' ? renderAwards() : ''}
                 ${state.activeTab === 'müfredat' ? renderCurriculumTab() : ''}
                 ${state.activeTab === 'sorumlu-paneli' && isSorumlu ? renderSupervisor() : ''}
+                ${state.activeTab === 'günlük' ? renderJournalTab() : ''}
                 ${state.activeTab === 'ayarlar' ? renderSettings() : ''}
             </main>
 
-            <!-- 3. ALT SABİT NAVİGASYON BARI (Duolingo Stili Sabit Menü) -->
             <nav class="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t-2 border-stone-200 shadow-lg px-4 py-2">
                 <div class="max-w-md mx-auto flex justify-around items-center">
-                    
                     <button onclick="switchTab('dashboard')" class="flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all ${state.activeTab === 'dashboard' ? 'text-emerald-600 font-black scale-105' : 'text-slate-400 hover:text-slate-600 font-bold'}">
                         <span class="text-xl">🌳</span>
                         <span class="text-[10px] uppercase font-black">Ağaç</span>
@@ -312,11 +441,15 @@ function render() {
                         </button>
                     ` : ''}
 
+                    <button onclick="switchTab('günlük')" class="flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all ${state.activeTab === 'günlük' ? 'text-emerald-600 font-black scale-105' : 'text-slate-400 hover:text-slate-600 font-bold'}">
+                        <span class="text-xl">✒️</span>
+                        <span class="text-[10px] uppercase font-black">Günlük</span>
+                    </button>
+
                     <button onclick="switchTab('ayarlar')" class="flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all ${state.activeTab === 'ayarlar' ? 'text-emerald-600 font-black scale-105' : 'text-slate-400 hover:text-slate-600 font-bold'}">
                         <span class="text-xl">⚙️</span>
                         <span class="text-[10px] uppercase font-black">Ayarlar</span>
                     </button>
-
                 </div>
             </nav>
         </div>
@@ -367,8 +500,6 @@ function renderDashboard() {
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
-            
-            <!-- ÜST KART: FAZ & İLERLEME -->
             <header class="bg-white p-5 md:p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4">
                     <div class="w-14 h-14 rounded-2xl bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 flex items-center justify-center text-3xl shadow-sm">
@@ -393,10 +524,7 @@ function renderDashboard() {
                 </div>
             </header>
 
-            <!-- AĞAÇ ALANI & FAZ MODALI -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-8 text-center relative overflow-hidden shadow-sm space-y-4">
-                
-                <!-- Info Butonu -->
                 <div class="absolute top-4 right-4 z-10">
                     <button onclick="togglePhaseModal()" class="w-9 h-9 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 border-2 border-sky-200 border-b-4 border-b-sky-300 flex items-center justify-center text-xs font-black transition-all shadow-sm active:translate-y-0.5" title="Faz Aşamaları">
                         ℹ️
@@ -416,7 +544,6 @@ function renderDashboard() {
                     <div class="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-sm" style="width: ${progressPercent}%"></div>
                 </div>
 
-                <!-- FAZ AŞAMALARI BİLGİ MODALI (AÇILIR KAPANIR) -->
                 ${window.showPhaseModal ? `
                     <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-2xl p-5 space-y-2 text-xs text-sky-900 text-left animate-fadeIn mt-4 shadow-sm">
                         <div class="flex justify-between items-center font-black border-b-2 border-sky-200 pb-2">
@@ -434,16 +561,23 @@ function renderDashboard() {
                 ` : ''}
             </div>
 
-            <!-- VAZİFELER LİSTESİ -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
                 <div class="flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-black text-slate-800">📋 Günün Vazifeleri</h3>
                         <p class="text-xs text-slate-500 font-medium">Adımları tamamla, ağacını ve fazını büyüt!</p>
                     </div>
-                    <button onclick="switchTab('müfredat')" class="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-amber-950 border-2 border-amber-500 border-b-4 border-b-amber-600 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-1.5">
-                        <span>📖</span> Müfredat & Ekle
-                    </button>
+                    
+                    <div class="flex items-center gap-2">
+                        <!-- GEÇİCİ TEST BUTONU -->
+                        <button onclick="testProcessDailyCheck()" class="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 border-2 border-purple-300 border-b-4 border-b-purple-400 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm" title="Bugünün tarihini dünkü gün yaparak testi tetikler">
+                            ⚡ Gün Atlat (Test)
+                        </button>
+
+                        <button onclick="switchTab('müfredat')" class="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-amber-950 border-2 border-amber-500 border-b-4 border-b-amber-600 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-1.5">
+                            <span>📖</span> Müfredat & Ekle
+                        </button>
+                    </div>
                 </div>
 
                 <div class="space-y-3.5">
@@ -452,7 +586,6 @@ function renderDashboard() {
                         return `
                             <div class="p-4 md:p-5 rounded-2xl ${task.completed ? 'bg-emerald-50/80 border-2 border-emerald-300 border-b-4 border-b-emerald-400' : 'bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300'} transition-all flex items-center justify-between gap-4">
                                 <div class="flex items-center gap-4">
-                                    <!-- Checkbox (1 ay kuralına göre kilitli/pasif olabilir) -->
                                     <label class="relative flex items-center justify-center ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}">
                                         <input type="checkbox" ${task.completed ? 'checked' : ''} ${isLocked ? 'disabled' : ''} onchange="toggleTaskComplete(${task.id})" class="peer sr-only">
                                         <div class="w-8 h-8 rounded-xl bg-white border-2 border-stone-300 border-b-4 border-b-stone-400 peer-checked:bg-emerald-500 peer-checked:border-emerald-600 peer-checked:border-b-emerald-700 flex items-center justify-center transition-all shadow-sm">
@@ -470,7 +603,6 @@ function renderDashboard() {
                                     </div>
                                 </div>
 
-                                <!-- Silme Butonu -->
                                 <button onclick="deleteTask(${task.id})" class="w-9 h-9 flex items-center justify-center rounded-xl bg-stone-100 hover:bg-rose-100 text-stone-400 hover:text-rose-600 border border-stone-200 hover:border-rose-300 transition-all text-xs" title="Kaldır">
                                     🗑️
                                 </button>
@@ -488,24 +620,24 @@ function renderDashboard() {
     `;
 }
 
-// --- İSTATİSTİKLER SEKMESİ ---
+// --- İSTATİSTİKLER SEKMESİ (Geçmiş Arşiv Dâhil Hesaplar) ---
 window.statsPeriod = window.statsPeriod || 'genel';
 window.setStatsPeriod = function(period) { window.statsPeriod = period; render(); }
 
 function renderStats() {
     const totalStreak = state.streak || 0;
-    const completedTasksCount = state.tasks.filter(t => t.completed).length;
-    const totalTasksCount = state.tasks.length;
-    const todayCompletion = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+    
+    // Aktif ve geçmiş arşivdeki tüm tamamlananları birleştir
+    const activeCompleted = state.tasks.filter(t => t.completed);
+    const historyCompleted = state.completedHistory || [];
+    const allCompleted = [...activeCompleted, ...historyCompleted];
+    
     const categories = ["Kur'an", "Osmanlıca", "Ezber", "Mütalaa", "Özel"];
     
     const categoryStats = categories.map(cat => {
-        const catTasks = state.tasks.filter(t => t.category === cat);
-        const catTotal = catTasks.length;
-        const catCompleted = catTasks.filter(t => t.completed).length;
-        const percent = catTotal > 0 ? Math.round((catCompleted / catTotal) * 100) : 0;
-        return { category: cat, total: catTotal, completed: catCompleted, percent };
-    }).filter(c => c.total > 0);
+        const catCompleted = allCompleted.filter(t => t.category === cat || (cat === 'Mütalaa' && t.category === 'Arapça') || (cat === 'Osmanlıca' && t.category === 'Yazı')).length;
+        return { category: cat, completed: catCompleted };
+    }).filter(c => c.completed > 0);
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
@@ -533,10 +665,10 @@ function renderStats() {
 
                 <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 p-6 rounded-3xl flex flex-col justify-between shadow-sm">
                     <div>
-                        <p class="text-slate-400 text-[11px] font-black uppercase tracking-wider">Bugünkü Başarı</p>
-                        <h3 class="text-4xl font-black text-amber-500 mt-2">%${todayCompletion}</h3>
+                        <p class="text-slate-400 text-[11px] font-black uppercase tracking-wider">Toplam Tamamlanan</p>
+                        <h3 class="text-4xl font-black text-amber-500 mt-2">${allCompleted.length}</h3>
                     </div>
-                    <div class="mt-4 pt-4 border-t-2 border-stone-100 text-xs text-slate-500 font-medium">✅ ${completedTasksCount} / ${totalTasksCount} Vazife</div>
+                    <div class="mt-4 pt-4 border-t-2 border-stone-100 text-xs text-slate-500 font-medium">✅ Başarıyla Bitirilen Vazife</div>
                 </div>
 
                 <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 p-6 rounded-3xl flex flex-col justify-between shadow-sm">
@@ -549,16 +681,13 @@ function renderStats() {
             </div>
 
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
-                <h3 class="text-lg font-black text-slate-800">📖 Ders Bazlı İlerleme</h3>
+                <h3 class="text-lg font-black text-slate-800">📖 Ders Bazlı Tamamlanan Sayıları</h3>
                 <div class="space-y-4">
                     ${categoryStats.length > 0 ? categoryStats.map(stat => `
                         <div class="space-y-1.5">
                             <div class="flex justify-between items-center text-sm">
                                 <span class="font-bold text-slate-700">${stat.category}</span>
-                                <span class="text-xs font-bold text-slate-500"><strong class="text-emerald-600">%${stat.percent}</strong> (${stat.completed}/${stat.total})</span>
-                            </div>
-                            <div class="w-full bg-stone-100 h-3.5 rounded-full overflow-hidden p-0.5 border-2 border-stone-200">
-                                <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${stat.percent}%"></div>
+                                <span class="text-xs font-bold text-emerald-600"><strong>${stat.completed}</strong> Vazife Tamamlandı</span>
                             </div>
                         </div>
                     `).join('') : '<p class="text-xs text-slate-400 text-center py-4">Veri bulunmuyor.</p>'}
@@ -568,10 +697,11 @@ function renderStats() {
     `;
 }
 
-// --- KAZANIMLAR SEKMESİ ---
+// --- KAZANIMLAR SEKMESİ (Arşivi Kullanır) ---
 function renderAwards() {
-    const todayStr = state.lastCheckDate || new Date().toISOString().split('T')[0];
-    const completedTasks = state.tasks.filter(t => t.completed);
+    const activeCompleted = state.tasks.filter(t => t.completed);
+    const historyCompleted = state.completedHistory || [];
+    const allCompleted = [...activeCompleted, ...historyCompleted];
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
@@ -601,18 +731,18 @@ function renderAwards() {
                     <p class="text-xs font-black text-slate-800">Müstakim Ağaç</p>
                     <p class="text-[10px] text-slate-400 font-bold">${state.streak >= 30 ? 'Kazanıldı!' : 'Kilitli'}</p>
                 </div>
-                <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 p-4 rounded-3xl text-center space-y-1 shadow-sm ${completedTasks.length > 0 ? 'opacity-100' : 'opacity-40'}">
+                <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 p-4 rounded-3xl text-center space-y-1 shadow-sm ${allCompleted.length > 0 ? 'opacity-100' : 'opacity-40'}">
                     <span class="text-3xl">📜</span>
                     <p class="text-xs font-black text-slate-800">Vazife Mimarı</p>
-                    <p class="text-[10px] text-slate-400 font-bold">${completedTasks.length > 0 ? 'Kazanıldı!' : 'Kilitli'}</p>
+                    <p class="text-[10px] text-slate-400 font-bold">${allCompleted.length > 0 ? 'Kazanıldı!' : 'Kilitli'}</p>
                 </div>
             </div>
 
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
-                <h3 class="text-lg font-black text-slate-800">📅 Tamamlanan Vazifeler</h3>
-                ${completedTasks.length > 0 ? `
+                <h3 class="text-lg font-black text-slate-800">📅 Tamamlanan Geçmiş Vazifeler</h3>
+                ${allCompleted.length > 0 ? `
                     <div class="space-y-3">
-                        ${completedTasks.map(t => `
+                        ${allCompleted.map(t => `
                             <div class="p-4 bg-stone-50 border-2 border-stone-200 rounded-2xl flex items-center justify-between">
                                 <div class="flex items-center gap-3">
                                     <span class="text-emerald-600 text-lg font-bold">✅</span>
@@ -622,12 +752,12 @@ function renderAwards() {
                                     </div>
                                 </div>
                                 <span class="px-3 py-1 bg-white text-emerald-700 border-2 border-emerald-200 rounded-xl text-xs font-mono font-black shadow-sm">
-                                    🗓️ ${todayStr}
+                                    🗓️ ${t.completedAt || 'Bugün'}
                                 </span>
                             </div>
                         `).join('')}
                     </div>
-                ` : '<p class="text-center py-8 text-slate-400 text-xs font-medium">Bugün henüz tamamlanan vazife bulunmuyor.</p>'}
+                ` : '<p class="text-center py-8 text-slate-400 text-xs font-medium">Henüz tamamlanan vazife bulunmuyor.</p>'}
             </div>
         </div>
     `;
@@ -658,12 +788,11 @@ function renderSupervisor() {
                     const isExpanded = window.expandedStudentId === s.id;
                     const treeInfo = getTreePhaseDisplay(s.treePhase || 'tohum1');
                     const studentTasks = s.tasks || [];
-                    // Tamamlanmış vazifeleri filtrele
-                    const completedTasks = studentTasks.filter(t => t.completed || t.completedAt);
+                    const studentHistory = s.completedHistory || [];
+                    const completedTasks = [...studentTasks.filter(t => t.completed), ...studentHistory];
                     
                     return `
                         <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl overflow-hidden shadow-sm transition-all">
-                            <!-- Kart Başlığı (Tıklayınca Genişler) -->
                             <div onclick="toggleStudentCard('${s.id}')" class="p-5 flex items-center justify-between cursor-pointer hover:bg-stone-50 transition-colors">
                                 <div class="flex items-center gap-4">
                                     <div class="w-12 h-12 rounded-2xl bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 flex items-center justify-center text-2xl shadow-sm">
@@ -684,7 +813,6 @@ function renderSupervisor() {
                                 </div>
                             </div>
 
-                            <!-- Genişleyen Detay Alanı -->
                             ${isExpanded ? `
                                 <div class="p-6 bg-stone-50 border-t-2 border-stone-200 space-y-4 animate-fadeIn">
                                     <h5 class="text-xs font-black text-slate-700 uppercase tracking-wider">📚 Tamamlanan Son Vazifeler</h5>
@@ -695,9 +823,7 @@ function renderSupervisor() {
                                                 <div class="p-3.5 bg-white border-2 border-stone-200 rounded-2xl flex items-center justify-between shadow-sm">
                                                     <div class="space-y-0.5">
                                                         <div class="flex items-center gap-2">
-                                                            <!-- Hangi alanda olduğu (Kategori) -->
                                                             <span class="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">${t.category}</span>
-                                                            <!-- Hangi vazifeyi tamamladığı -->
                                                             <span class="text-xs font-bold text-slate-800">${t.title}</span>
                                                         </div>
                                                     </div>
@@ -891,8 +1017,6 @@ function renderCurriculumTab() {
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
-            
-            <!-- BAŞLIK VE INFO BUTONU -->
             <div class="bg-white p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 flex flex-wrap justify-between items-center gap-4 shadow-sm">
                 <div>
                     <h2 class="text-xl font-black text-slate-800">📖 Medrese Kurları (1 - 10)</h2>
@@ -906,7 +1030,6 @@ function renderCurriculumTab() {
                 </div>
             </div>
 
-            <!-- Yönerge Paneli -->
             ${isInfoOpen ? `
                 <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-3xl p-6 md:p-8 space-y-4 animate-fadeIn relative shadow-sm">
                     <div class="flex justify-between items-center border-b-2 border-sky-200 pb-3">
@@ -933,7 +1056,6 @@ function renderCurriculumTab() {
                 </div>
             ` : ''}
 
-            <!-- 10 Kur Seçim Kaydırması -->
             <div class="bg-white p-4 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 shadow-sm overflow-x-auto flex items-center gap-2">
                 ${STATIC_CURRICULUM.map(course => `
                     <button onclick="setCourseLevel(${course.level})" class="px-4 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${window.selectedCourseLevel === course.level ? 'bg-emerald-500 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm' : 'bg-stone-50 text-slate-500 hover:text-slate-800 border-2 border-stone-200'}">
@@ -942,41 +1064,41 @@ function renderCurriculumTab() {
                 `).join('')}
             </div>
 
-            <!-- Seçili Kurun Detayları ve Vazifeler -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
-                <div class="border-b-2 border-stone-100 pb-4">
-                    <span class="text-[11px] font-black px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full font-mono">Seviye: ${currentCourse.level}. Kur</span>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">${currentCourse.title}</h3>
-                    <p class="text-xs text-slate-500 font-medium mt-1">${currentCourse.description}</p>
+                <div class="border-b-2 border-stone-100 pb-4 flex flex-wrap justify-between items-start gap-4">
+                    <div>
+                        <span class="text-[11px] font-black px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full font-mono">Seviye: ${currentCourse.level}. Kur</span>
+                        <h3 class="text-xl font-black text-slate-800 mt-2">${currentCourse.title}</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-1">${currentCourse.description}</p>
+                    </div>
+
+                    <button onclick="switchTab('dashboard')" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border-2 border-stone-300 border-b-4 border-b-stone-400 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-2 whitespace-nowrap">
+                        <span>📋</span> Vazife Listesine Dön
+                    </button>
                 </div>
 
                 <div class="space-y-3.5">
                     ${currentCourse.tasks.map(item => {
-                        // Kullanıcının görevler listesinde bu müfredat dersi var mı?
-                        const existingTask = state.tasks.find(t => t.curriculumId === item.id);
-                        
-                        // Tamamlanmış ve süre kuralına (1 ay) göre hala kilitli mi?
-                        const isCompletedAndLocked = existingTask && existingTask.completed && isTaskLockedByTime(existingTask);
-                        
-                        // Aktif olarak programda ekli mi (ama henüz tamamlanmamış veya süresi dolmuş)?
-                        const isInProgramActive = existingTask && (!existingTask.completed || !isTaskLockedByTime(existingTask));
+                        // Kilit durumunu hem aktif hem de geçmiş arşivden sorgula
+                        const isLocked = isCurriculumItemLocked(item.id);
+                        const isInProgramActive = state.tasks.some(t => t.curriculumId === item.id && !t.completed);
 
                         return `
-                            <div class="p-4 bg-stone-50 border-2 border-stone-200 rounded-2xl flex justify-between items-center">
+                            <div class="p-4 bg-stone-50 border-2 border-stone-200 rounded-2xl flex justify-between items-center gap-4">
                                 <div class="space-y-1">
                                     <h5 class="font-bold text-sm text-slate-800">${item.title}</h5>
                                     <div class="flex items-center gap-2">
                                         <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700 uppercase tracking-wider">${item.category}</span>
-                                        ${isCompletedAndLocked ? '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">🔒 Tamamlandı (Kilitli)</span>' : ''}
+                                        ${isLocked ? '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">🔒 Tamamlandı (Kilitli)</span>' : ''}
                                     </div>
                                 </div>
                                 
-                                <button onclick="toggleTaskSelection('${item.id}')" ${isCompletedAndLocked ? 'disabled' : ''} class="px-4 py-2 rounded-2xl text-xs font-black transition-all ${
-                                    isCompletedAndLocked ? 'bg-stone-200 text-stone-400 border-2 border-stone-300 cursor-not-allowed opacity-70' :
+                                <button onclick="toggleTaskSelection('${item.id}')" ${isLocked ? 'disabled' : ''} class="px-4 py-2 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${
+                                    isLocked ? 'bg-stone-200 text-stone-400 border-2 border-stone-300 cursor-not-allowed opacity-70' :
                                     isInProgramActive ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300' : 
                                     'bg-emerald-500 hover:bg-emerald-400 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm'
                                 }">
-                                    ${isCompletedAndLocked ? '🔒 Tamamlandı' : isInProgramActive ? '✓ Programımda' : '+ Programıma Ekle'}
+                                    ${isLocked ? '🔒 Tamamlandı' : isInProgramActive ? '✓ Programımda' : '+ Programıma Ekle'}
                                 </button>
                             </div>
                         `;
@@ -984,7 +1106,6 @@ function renderCurriculumTab() {
                 </div>
             </div>
 
-            <!-- Şahsi Vazife Ekleme -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
                 <div>
                     <h3 class="text-lg font-black text-slate-800">✨ Şahsi Ek Vazife Oluştur</h3>
@@ -1006,15 +1127,18 @@ function renderCurriculumTab() {
     `;
 }
 
-// --- GLOBAL AKSİYONLAR ---
-// Kullanıcının tamamladığı veya açtığı en yüksek kur seviyesi (Varsayılan: 1)
-
 window.setCourseLevel = function(level) {
     window.selectedCourseLevel = level;
     render();
 }
 
 window.toggleTaskSelection = async function(currId) {
+    // Önce kilit kontrolü
+    if (isCurriculumItemLocked(currId)) {
+        showNotification("Bu vazife son 30 gün içinde tamamlanmıştır ve kilitlidir!", "error");
+        return;
+    }
+
     let targetCourse = null;
     let foundItem = null;
     
@@ -1027,18 +1151,9 @@ window.toggleTaskSelection = async function(currId) {
     const existingIndex = state.tasks.findIndex(t => t.curriculumId === currId);
     
     if (existingIndex !== -1) {
-        const existingTask = state.tasks[existingIndex];
-        // Eğer görev tamamlanmış ve 1 ay kuralı gereği kilitliyse müfredattan çıkarılamaz/değiştirilemez
-        if (existingTask.completed && isTaskLockedByTime(existingTask)) {
-            showNotification("Bu vazife tamamlanmış ve kilitlidir, silinemez!", "error");
-            return;
-        }
-        
-        // Normal durum: Programdan çıkar
         state.tasks.splice(existingIndex, 1);
         showNotification("Vazife programınızdan çıkarıldı.", "info");
     } else {
-        // Yeni ekle
         state.tasks.push({
             id: Date.now(),
             curriculumId: currId,
@@ -1055,31 +1170,6 @@ window.toggleTaskSelection = async function(currId) {
     render();
 }
 
-window.updateTaskProgress = async function(taskId, change) {
-    const today = getTodayString();
-    state.tasks = state.tasks.map(task => {
-        if (task.id === taskId) {
-            let newStep = (task.currentStep || 1) + change;
-            const total = task.totalSteps || 1;
-            if (newStep < 1) newStep = 1;
-            if (newStep > total) newStep = total;
-            const isFinished = newStep >= total;
-
-            return {
-                ...task,
-                currentStep: newStep,
-                completed: isFinished,
-                lastProgressDate: today,
-                completedAt: isFinished ? today : null
-            };
-        }
-        return task;
-    });
-    await saveUserData();
-    render();
-}
-
-// Şahsi vazife ekleme
 window.addPersonalTask = async function(e) {
     e.preventDefault();
     const titleInput = document.getElementById('personal-task-title');
@@ -1093,7 +1183,7 @@ window.addPersonalTask = async function(e) {
         curriculumId: `personal_${Date.now()}`,
         title,
         category,
-        completed: false, // Sadece tamamlandı durumu
+        completed: false,
         completedAt: null,
         isPersonal: true
     });
@@ -1156,15 +1246,8 @@ window.handleLogout = async function() {
 
 window.switchTab = async function(tab) { 
     state.activeTab = tab; 
-    
-    console.log("Aktif Rol:", state.role, "Tıklanan Sekme:", tab); // Kontrol için
-
-    if (tab === 'sorumlu-paneli') {
-        if (state.role === 'sorumlu') {
-            await loadStudents();
-        } else {
-            console.warn("Bu kullanıcı sorumlu yetkisine sahip değil!");
-        }
+    if (tab === 'sorumlu-paneli' && state.role === 'sorumlu') {
+        await loadStudents();
     }
     render(); 
 }
