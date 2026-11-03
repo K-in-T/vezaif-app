@@ -288,21 +288,62 @@ window.testProcessDailyCheck = async function() {
 }
 
 // --- GÜNLÜK & VAKİT ANALİZİ SEKMESİ ---
+window.journalSearchQuery = window.journalSearchQuery || '';
+
+// Arama yapıldığında sayfayı komple YENİDEN ÇİZMEK yerine SADECE LİSTEYİ GÜNCELLEYEN FONKSİYON
+window.filterJournals = function(query) {
+    window.journalSearchQuery = query.toLowerCase();
+    
+    // Sadece geçmiş günlüklerin olduğu container'ı bulup onun içerisini güncelliyoruz
+    const listContainer = document.getElementById('journal-list-container');
+    if (listContainer) {
+        listContainer.innerHTML = renderJournalListHTML();
+    }
+}
+
+// Günlük listesinin HTML'ini üreten yardımcı fonksiyon
+function renderJournalListHTML() {
+    if (!state.journals) state.journals = [];
+
+    const filteredJournals = state.journals.filter(entry => 
+        entry.content.toLowerCase().includes(window.journalSearchQuery) || 
+        entry.date.toLowerCase().includes(window.journalSearchQuery)
+    );
+
+    if (filteredJournals.length === 0) {
+        return `
+            <div class="text-center py-10 border-2 border-dashed border-stone-300 rounded-2xl bg-stone-50">
+                <p class="text-xs font-bold text-slate-500">${state.journals.length > 0 ? 'Aranan kritere uygun günlük bulunamadı.' : 'Henüz kaydedilmiş bir vakit analizi bulunmuyor.'}</p>
+            </div>
+        `;
+    }
+
+    return filteredJournals.map((entry) => {
+        const realIndex = state.journals.indexOf(entry);
+        return `
+            <div class="p-5 bg-stone-50 border-2 border-stone-200 rounded-2xl space-y-2 relative">
+                <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+                    <span class="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-0.5 rounded-full border border-emerald-300 font-mono">${entry.date}</span>
+                    <button onclick="deleteJournalEntry(${realIndex})" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1 transition-colors" title="Sil">🗑️</button>
+                </div>
+                <p class="text-xs text-slate-700 font-medium whitespace-pre-line leading-relaxed">${entry.content}</p>
+            </div>
+        `;
+    }).join('');
+}
+
 function renderJournalTab() {
     if (!state.journals) state.journals = [];
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
-            <div class="bg-white p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 flex justify-between items-center gap-4 shadow-sm">
-                <div>
-                    <h2 class="text-xl font-black text-slate-800">✒️ Günlük & Vakit Analizi</h2>
-                    <p class="text-xs text-slate-500 font-medium">Gününü nasıl geçirdin? Vaktini tefekkür et, muhasebeni yap.</p>
-                </div>
-                <button onclick="switchTab('dashboard')" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border-2 border-stone-300 border-b-4 border-b-stone-400 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-2 whitespace-nowrap">
-                    <span>📋</span> Vazife Listesine Dön
-                </button>
+            <!-- ÜST BAŞLIK -->
+            <div class="bg-white p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 shadow-sm">
+                <h2 class="text-xl font-black text-slate-800">✒️ Günlük & Vakit Analizi</h2>
+                <p class="text-xs text-slate-500 font-medium">Gününü nasıl geçirdin? Vaktini tefekkür et, muhasebeni yap.</p>
             </div>
 
+            <!-- GÜNLÜK GİRİŞ FORMU -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
                 <h3 class="text-lg font-black text-slate-800">📝 Bugünkü Vakit Muhasebesi</h3>
                 
@@ -312,17 +353,7 @@ function renderJournalTab() {
                         <textarea id="journal-content" rows="4" placeholder="Bugün ilme, ibadete ve günlük işlere ne kadar vakit ayırdım? Neleri iyi yaptım, neleri eksik bıraktım..." required class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl p-4 text-sm font-medium text-slate-800 focus:outline-none focus:border-emerald-500 leading-relaxed"></textarea>
                     </div>
 
-                    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div class="w-full md:w-auto flex items-center gap-2">
-                            <span class="text-xs font-bold text-slate-600">Günün Verimlilik Skoru:</span>
-                            <select id="journal-score" class="bg-stone-50 border-2 border-stone-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
-                                <option value="🌟 Mükemmel">🌟 Mükemmel (Dolu dolu)</option>
-                                <option value="👍 İyi" selected>👍 İyi (İstikrarlı)</option>
-                                <option value="⚠️ Orta">⚠️ Orta (Geliştirilmeli)</option>
-                                <option value="❌ Verimsiz">❌ Verimsiz (Ziyan oldu)</option>
-                            </select>
-                        </div>
-
+                    <div class="flex justify-end">
                         <button type="submit" class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-black border-2 border-emerald-600 border-b-4 border-b-emerald-700 rounded-2xl text-sm transition-all shadow-md active:translate-y-0.5">
                             Günlüğü Kaydet
                         </button>
@@ -330,36 +361,30 @@ function renderJournalTab() {
                 </form>
             </div>
 
+            <!-- GEÇMİŞ GÜNLÜK KAYITLARI & ARAMA INPUTU -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
-                <h3 class="text-lg font-black text-slate-800">📚 Geçmiş Vakit Analizlerim</h3>
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200 pb-4">
+                    <h3 class="text-lg font-black text-slate-800">📚 Geçmiş Vakit Analizlerim</h3>
+                    
+                    <!-- ARAMA INPUT ALANI -->
+                    <div class="w-full md:w-72">
+                        <input type="text" id="journal-search-input" oninput="filterJournals(this.value)" value="${window.journalSearchQuery || ''}" placeholder="🔍 Günlüklerde ara..." class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
 
-                <div class="space-y-4">
-                    ${state.journals && state.journals.length > 0 ? state.journals.map((entry, index) => `
-                        <div class="p-5 bg-stone-50 border-2 border-stone-200 rounded-2xl space-y-2 relative">
-                            <div class="flex justify-between items-center border-b border-stone-200 pb-2">
-                                <span class="text-xs font-black text-emerald-800 bg-emerald-100 px-3 py-0.5 rounded-full border border-emerald-300 font-mono">${entry.date}</span>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-md bg-stone-200 text-stone-700">${entry.score}</span>
-                                    <button onclick="deleteJournalEntry(${index})" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1 transition-colors" title="Sil">🗑️</button>
-                                </div>
-                            </div>
-                            <p class="text-xs text-slate-700 font-medium whitespace-pre-line leading-relaxed">${entry.content}</p>
-                        </div>
-                    `).join('') : `
-                        <div class="text-center py-10 border-2 border-dashed border-stone-300 rounded-2xl bg-stone-50">
-                            <p class="text-xs font-bold text-slate-500">Henüz kaydedilmiş bir vakit analizi bulunmuyor. İlk günlüğünü yukarıdan yazabilirsin!</p>
-                        </div>
-                    `}
+                <!-- DİNAMİK LİSTE KAPSAYICISI (id="journal-list-container") -->
+                <div id="journal-list-container" class="space-y-4">
+                    ${renderJournalListHTML()}
                 </div>
             </div>
         </div>
     `;
 }
 
+// Skor parametresi kaldırılmış güncellenmiş kayıt fonksiyonu
 window.saveJournalEntry = async function(event) {
     event.preventDefault();
     const content = document.getElementById('journal-content').value.trim();
-    const score = document.getElementById('journal-score').value;
     if (!content) return;
 
     const options = { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' };
@@ -370,7 +395,39 @@ window.saveJournalEntry = async function(event) {
     state.journals.unshift({
         date: dateStr,
         content: content,
-        score: score,
+        timestamp: Date.now()
+    });
+
+    await saveUserData();
+    showNotification("Vakit analizi kaydedildi! ✒️", "success");
+    render();
+}
+
+window.saveJournalEntry = async function(event) {
+    event.preventDefault(); // Formun sayfayı yenilemesini engeller
+
+    // Textarea elemanını alalım
+    const textarea = document.getElementById('journal-content');
+    
+    // Eleman bulunamadıysa hataya düşmeden çıkalım
+    if (!textarea) {
+        console.error("Hata: 'journal-content' id'li textarea elemanı bulunamadı!");
+        return;
+    }
+
+    const content = textarea.value.trim();
+    if (!content) return;
+
+    // Türkçe tarih formatı
+    const options = { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' };
+    const dateStr = new Date().toLocaleDateString('tr-TR', options);
+
+    if (!state.journals) state.journals = [];
+
+    // Yeni kaydı en başa ekleyelim
+    state.journals.unshift({
+        date: dateStr,
+        content: content,
         timestamp: Date.now()
     });
 
