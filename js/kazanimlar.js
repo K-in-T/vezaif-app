@@ -66,9 +66,6 @@ export function renderAwards() {
                     <h2 class="text-xl font-black text-slate-800">📊 Ders ve Alan İlerlemesi</h2>
                     <p class="text-xs text-slate-500 font-medium">Genel müfredat ilerlemenizi ve zaman filtreli tamamlanan vazifelerinizi inceleyin.</p>
                 </div>
-                <div class="p-3 bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 rounded-2xl text-emerald-700 text-xl shadow-sm">
-                    📈
-                </div>
             </div>
 
             <!-- DERS / ALAN BAZLI GENEL İLERLEME ÇUBUKLARI (GENELİ ESAS ALIR) -->

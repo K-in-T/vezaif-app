@@ -7,11 +7,8 @@ export function renderSettings() {
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
             <div class="bg-white p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 flex justify-between items-center shadow-sm">
                 <div>
-                    <h2 class="text-xl font-black text-slate-800">Ayarlar ve Hesap</h2>
+                    <h2 class="text-xl font-black text-slate-800">⚙️ Ayarlar ve Hesap</h2>
                     <p class="text-xs text-slate-500 font-medium">Oturum bilgilerinizi yönetin.</p>
-                </div>
-                <div class="p-3 bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 rounded-2xl text-emerald-700 text-xl shadow-sm">
-                    ⚙️
                 </div>
             </div>
 
@@ -31,7 +28,7 @@ export function renderSettings() {
                         <p class="text-xs text-slate-400 font-medium mt-0.5">Güvenli bir şekilde çıkış yapın.</p>
                     </div>
                     <button onclick="handleLogout()" class="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-200 border-b-4 border-b-rose-300 font-black rounded-2xl text-xs transition-all active:translate-y-0.5">
-                        🚪 Çıkış Yap
+                        🔑 Çıkış Yap
                     </button>
                 </div>
             </div>

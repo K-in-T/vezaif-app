@@ -18,19 +18,19 @@ export function getTreePhaseDisplay(phase) {
     if (!phase) phase = 'tohum1';
     if (phase.startsWith('tohum')) {
         const sub = phase.replace('tohum', '');
-        return { icon: '🌰', title: `Tohum Fazı (Seviye ${sub}/2)`, desc: 'İlim yolculuğunun ilk adımları, toprak altındaki hazırlık.', kur: sub === '1' ? '1. Kur' : '2. Kur' };
+        return { icon: '🌰', title: `Tohum Fazı ${sub}`, desc: 'İlim yolculuğunun ilk adımları, toprak altındaki hazırlık.', kur: sub === '1' ? '1. Kur' : '2. Kur' };
     } else if (phase.startsWith('filiz')) {
         const sub = phase.replace('filiz', '');
-        return { icon: '🌱', title: `Filiz Fazı (Seviye ${sub}/2)`, desc: 'İstikrarla birlikte ilim fidanı topraktan baş gösteriyor.', kur: sub === '1' ? '3. Kur' : '4. Kur' };
+        return { icon: '🌱', title: `Filiz Fazı ${sub}`, desc: 'İstikrarla birlikte ilim fidanı topraktan baş gösteriyor.', kur: sub === '1' ? '3. Kur' : '4. Kur' };
     } else if (phase.startsWith('fide')) {
         const sub = phase.replace('fide', '');
-        return { icon: '🌿', title: `Fide Fazı (Seviye ${sub}/2)`, desc: 'Kökler sağlamlaşıyor, fidan boy atmaya başladı.', kur: sub === '1' ? '5. Kur' : '6. Kur' };
+        return { icon: '🌿', title: `Fide Fazı ${sub}`, desc: 'Kökler sağlamlaşıyor, fidan boy atmaya başladı.', kur: sub === '1' ? '5. Kur' : '6. Kur' };
     } else if (phase.startsWith('cicek')) {
         const sub = phase.replace('cicek', '');
-        return { icon: '🌸', title: `Çiçek Fazı (Seviye ${sub}/2)`, desc: 'Gayretler meyve vermeye başladı, manevi manzaralar açılıyor.', kur: sub === '1' ? '7. Kur' : '8. Kur' };
+        return { icon: '🌸', title: `Çiçek Fazı ${sub}`, desc: 'Gayretler meyve vermeye başladı, manevi manzaralar açılıyor.', kur: sub === '1' ? '7. Kur' : '8. Kur' };
     } else if (phase.startsWith('meyve')) {
         const sub = phase.replace('meyve', '');
-        return { icon: '🍎', title: `Meyve Fazı (Seviye ${sub})`, desc: 'Zirve ilim ve olgunluk dönemi, istikrarın en güzel meyvesi.', kur: sub === '1' ? '9. Kur' : '10. Kur' };
+        return { icon: '🍎', title: `Meyve Fazı ${sub}`, desc: 'Zirve ilim ve olgunluk dönemi, istikrarın en güzel meyvesi.', kur: sub === '1' ? '9. Kur' : '10. Kur' };
     }
     return { icon: '🌳', title: 'İlim Ağacı', desc: 'Gelişimi sürdürün.', kur: '1. Kur' };
 }
@@ -78,20 +78,13 @@ export function renderDashboard() {
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
-            <!-- FAZ BİLGİSİ VE SERİ SAYACININ BİRLEŞTİRİLDİĞİ TEK KUTU -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
                 
-                <!-- SOL TARAFTA: FAZ BİLGİSİ -->
                 <div class="flex items-center gap-4 w-full md:w-auto">
                     <div class="w-14 h-14 rounded-2xl bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 flex items-center justify-center text-3xl shadow-sm shrink-0">
                         ${treeInfo.icon}
                     </div>
                     <div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-black uppercase text-emerald-800 tracking-wider font-mono bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                                ${state.treePhase || 'tohum1'} (${treeInfo.kur})
-                            </span>
-                        </div>
                         <h3 class="text-base font-black text-slate-800 mt-0.5">${treeInfo.title}</h3>
                         <p class="text-[11px] text-slate-500 font-medium">${treeInfo.desc}</p>
                     </div>
@@ -119,7 +112,6 @@ export function renderDashboard() {
                 <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-3xl p-6 space-y-3 text-xs text-sky-900 animate-fadeIn shadow-sm">
                     <div class="flex justify-between items-center font-black border-b-2 border-sky-200 pb-2">
                         <span class="text-sm">🌳 İlim Ağacı Faz Basamakları (10 Kur - 2'şer Seviye)</span>
-                        <button onclick="togglePhaseModal()" class="px-3 py-1 bg-white rounded-xl border border-sky-200 text-sky-700 font-black shadow-sm">Kapat X</button>
                     </div>
                     <ul class="space-y-2 pl-4 list-disc font-medium">
                         <li><strong>Tohum Fazı (1, 2):</strong> 1. ve 2. Kur hazırlık evreleri.</li>
@@ -140,10 +132,6 @@ export function renderDashboard() {
                     </div>
                     
                     <div class="flex items-center gap-2">
-                        <button onclick="testProcessDailyCheck()" class="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 border-2 border-purple-300 border-b-4 border-b-purple-400 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm" title="Bugünün tarihini dünkü gün yaparak testi tetikler">
-                            ⚡ Gün Atlat (Test)
-                        </button>
-
                         <button onclick="switchTab('müfredat')" class="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-amber-950 border-2 border-amber-500 border-b-4 border-b-amber-600 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-1.5">
                             <span>📖</span> Kur Listesi
                         </button>
@@ -187,15 +175,4 @@ window.deleteTask = async function(taskId) {
         await saveUserData();
         window.render();
     }
-};
-
-window.testProcessDailyCheck = async function() {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    state.lastCheckDate = yesterday.toISOString().split('T')[0];
-
-    showNotification("Gün atlatma simülasyonu çalıştırılıyor...", "info");
-    await processDailyCheck();
-    showNotification("Gün atlatıldı! Seri güncellendi ve ekran temizlendi. 🌳", "success");
-    window.render();
 };

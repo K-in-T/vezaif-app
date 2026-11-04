@@ -1,5 +1,6 @@
 import { db } from '../firebase-config.js';
 const { doc, getDoc, setDoc, updateDoc } = window.firebaseModules;
+const { collection, getDocs } = window.firebaseModules;
 
 export let state = {
     user: null,
@@ -15,6 +16,41 @@ export let state = {
     journals: [],
     students: []
 };
+
+export async function loadStudents() {
+    // Halihazırda çekiliyorsa üst üste tetiklenmesini önle
+    if (state.isLoadingStudents) return;
+    
+    // Sadece sorumlu kullanıcılar bu veriyi çekebilmeli
+    if (state.role !== 'sorumlu') {
+        state.students = [];
+        return;
+    }
+
+    state.isLoadingStudents = true;
+
+    try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        state.students = [];
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            // Kendini öğrenci listesinde göstermesin
+            if (docSnap.id !== state.user?.uid) {
+                state.students.push({
+                    id: docSnap.id,
+                    ...data
+                });
+            }
+        });
+    } catch (error) {
+        console.error("Talebe listesi çekilirken hata oluştu:", error.message);
+        state.students = []; 
+    } finally {
+        state.isLoadingStudents = false;
+    }
+}
+
+window.loadStudents = loadStudents;
 
 export function getTodayString() {
     return new Date().toISOString().split('T')[0];
