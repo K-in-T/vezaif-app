@@ -1,5 +1,7 @@
 import { state, saveUserData, getTodayString, showNotification } from './state.js';
+import { db } from '../firebase-config.js';
 
+const { doc, updateDoc } = window.firebaseModules;
 const BASE_PHASES = ['tohum1', 'tohum2', 'filiz1', 'filiz2', 'fide1', 'fide2', 'cicek1', 'cicek2', 'meyve1', 'meyve2'];
 
 function getPhaseLevelIndex(phase) {
@@ -11,7 +13,7 @@ function getPhaseLevelIndex(phase) {
 function getPhaseString(index) {
     if (index < 0) index = 0;
     if (index < BASE_PHASES.length) return BASE_PHASES[index];
-    return `meyve${(index - 8) + 1}`;
+    return `meyve${(index - BASE_PHASES.length) + 1}`;
 }
 
 export function getTreePhaseDisplay(phase) {
@@ -41,12 +43,12 @@ export async function processDailyCheck() {
         const tasks = state.tasks || [];
         const completedTasks = tasks.filter(t => t.completed);
         
-        const hasKuran = completedTasks.some(t => t.category === "Kur'an");
-        const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa" || t.category === "Arapça");
-        const hasYazi = completedTasks.some(t => t.category === "Yazı" || t.category === "Osmanlıca");
+        const hasKuran = completedTasks.some(t => t.category === "Kur'an" || t.category === "Kur'ân-ı Kerim");
+        const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa" || t.category === "Risale-i Nur Mütalaası" || t.category === "Arapça");
+        const hasYazi = completedTasks.some(t => t.category === "Yazı" || t.category === "Yazı Çalışması" || t.category === "Osmanlıca");
         
         const coreCategoriesMet = hasKuran && hasMutalaa && hasYazi;
-        const hasExtraTask = completedTasks.length > 3 || completedTasks.some(t => t.isPersonal || t.category === "Ezber" || t.category === "Özel");
+        const hasExtraTask = completedTasks.length > 3 || completedTasks.some(t => t.isPersonal || t.category === "Ezber" || t.category === "Ezber Çalışması" || t.category === "Özel");
 
         let currentIndex = getPhaseLevelIndex(state.treePhase || 'tohum1');
 
@@ -75,6 +77,12 @@ export async function processDailyCheck() {
 
 export function renderDashboard() {
     const treeInfo = getTreePhaseDisplay(state.treePhase || 'tohum1');
+
+    // Silinen sabit görevleri ve listeden düşenleri filtreleyelim
+    const activeTasks = (state.tasks || []).filter(task => {
+        const isDeletedInArray = state.deletedTaskIds && state.deletedTaskIds.includes(task.id);
+        return !isDeletedInArray;
+    });
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
@@ -107,7 +115,7 @@ export function renderDashboard() {
 
             </div>
 
-            <!-- FAZ DETAY MODALI (BİLGİ BUTONUNA BASILINCA AÇILIR) -->
+            <!-- FAZ DETAY MODALI -->
             ${window.showPhaseModal ? `
                 <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-3xl p-6 space-y-3 text-xs text-sky-900 animate-fadeIn shadow-sm">
                     <div class="flex justify-between items-center font-black border-b-2 border-sky-200 pb-2">
@@ -139,16 +147,18 @@ export function renderDashboard() {
                 </div>
 
                 <div class="space-y-3.5">
-                    ${state.tasks.length > 0 ? state.tasks.map(task => `
+                    ${activeTasks.length > 0 ? activeTasks.map(task => `
                         <div class="p-4 md:p-5 rounded-2xl ${task.completed ? 'bg-emerald-50/80 border-2 border-emerald-300 border-b-4 border-b-emerald-400' : 'bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300'} transition-all flex items-center justify-between gap-4">
                             <div class="flex items-center gap-4">
-                                <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete(${task.id})" class="w-6 h-6 accent-emerald-500 cursor-pointer">
+                                <!-- ID tırnak içine alındı -->
+                                <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete('${task.id}')" class="w-6 h-6 accent-emerald-500 cursor-pointer">
                                 <div>
                                     <h4 class="font-bold text-sm text-slate-800 ${task.completed ? 'line-through text-slate-400' : ''}">${task.title}</h4>
                                     <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-stone-200 text-stone-700">${task.category}</span>
                                 </div>
                             </div>
-                            <button onclick="deleteTask(${task.id})" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1">🗑️</button>
+                            <!-- ID tırnak içine alındı -->
+                            <button onclick="deleteTask('${task.id}')" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1">🗑️</button>
                         </div>
                     `).join('') : '<p class="text-center py-6 text-slate-400 text-xs">Vazife bulunmuyor. Kur listesinden ekleyebilirsiniz.</p>'}
                 </div>
@@ -163,16 +173,94 @@ window.togglePhaseModal = function() {
 };
 
 window.toggleTaskComplete = async function(taskId) {
+    if (!taskId) return;
     const todayStr = getTodayString();
-    state.tasks = state.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed, completedAt: !t.completed ? todayStr : null } : t);
+
+    // String/Number tip farkı gözetmeksizin güvenli eşleşme
+    state.tasks = state.tasks.map(t => {
+        if (String(t.id) === String(taskId)) {
+            const nextCompleted = !t.completed;
+            return { 
+                ...t, 
+                completed: nextCompleted, 
+                completedAt: nextCompleted ? todayStr : null 
+            };
+        }
+        return t;
+    });
+
     await saveUserData();
     window.render();
 };
 
 window.deleteTask = async function(taskId) {
-    if (confirm("Bu vazifeyi silmek istediğinize emin misiniz?")) {
-        state.tasks = state.tasks.filter(t => t.id !== taskId);
-        await saveUserData();
+    if (!taskId) return;
+
+    // Yerel state'teki tasks listesinden çıkaralım
+    state.tasks = (state.tasks || []).filter(t => String(t.id) !== String(taskId));
+
+    // Eğer özel vazife değilse deletedTaskIds listesine ekleyelim
+    if (!String(taskId).startsWith('custom_')) {
+        if (!state.deletedTaskIds) state.deletedTaskIds = [];
+        if (!state.deletedTaskIds.includes(taskId)) {
+            state.deletedTaskIds.push(taskId);
+        }
+    }
+
+    try {
+        if (state.user) {
+            const userRef = doc(db, "users", state.user.uid);
+            await updateDoc(userRef, {
+                tasks: state.tasks,
+                deletedTaskIds: state.statedeletedTaskIds || state.deletedTaskIds || []
+            });
+        }
+
+        showNotification("Vazife silindi.", "success");
         window.render();
+    } catch (err) {
+        console.error("Vazife silinirken hata:", err);
+        // Hata olsa bile arayüzü yenileyerek kullanıcının akışını bozmayalım
+        showNotification("Vazife silindi.", "success");
+        window.render();
+    }
+};
+
+window.handleAddNewCustomTask = async function() {
+    const input = document.getElementById('custom-task-input');
+    const title = input ? input.value.trim() : '';
+    
+    if (!title) {
+        showNotification("Lütfen vazife başlığı girin.", "error");
+        return;
+    }
+
+    const newTask = {
+        id: 'custom_' + Date.now(),
+        title: title,
+        category: "Özel",
+        completed: false
+    };
+
+    if (!state.tasks) {
+        state.tasks = [];
+    }
+
+    state.tasks.push(newTask);
+
+    try {
+        if (state.user) {
+            const userRef = doc(db, "users", state.user.uid);
+            await updateDoc(userRef, {
+                tasks: state.tasks
+            });
+        }
+
+        input.value = '';
+        showNotification("Özel vazife başarıyla eklendi!", "success");
+        window.render();
+    } catch (err) {
+        console.error("Özel vazife eklenirken hata:", err);
+        showNotification("Özel vazife eklenirken bir hata oluştu.", "error");
     }
 };

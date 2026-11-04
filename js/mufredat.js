@@ -1,10 +1,55 @@
+import { db } from '../firebase-config.js';
 import { state, saveUserData, showNotification } from './state.js';
+
+const { doc, updateDoc } = window.firebaseModules;
 
 window.selectedCourseLevel = window.selectedCourseLevel || 1;
 window.showCurriculumInfoModal = window.showCurriculumInfoModal || false;
 window.toggleCurriculumInfoModal = function() {
     window.showCurriculumInfoModal = !window.showCurriculumInfoModal;
     window.render();
+};
+
+window.handleAddNewCustomTask = async function() {
+    const input = document.getElementById('custom-task-input');
+    const title = input ? input.value.trim() : '';
+    
+    if (!title) {
+        showNotification("Lütfen vazife başlığı girin.", "error");
+        return;
+    }
+
+    // Benzersiz ID ve "Özel" kategorisi ile yeni görev oluşturalım
+    const newTask = {
+        id: 'custom_' + Date.now(),
+        title: title,
+        category: "Özel",
+        completed: false
+    };
+
+    if (!state.tasks) {
+        state.tasks = [];
+    }
+
+    // Listeye ekleyelim
+    state.tasks.push(newTask);
+
+    try {
+        // Firestore üzerindeki kullanıcı verisini güncelleyelim
+        if (state.user) {
+            const userRef = doc(db, "users", state.user.uid);
+            await updateDoc(userRef, {
+                tasks: state.tasks
+            });
+        }
+
+        input.value = '';
+        showNotification("Özel vazife başarıyla eklendi!", "success");
+        window.render(); // Ekranı güncelleyelim
+    } catch (err) {
+        console.error("Özel vazife eklenirken hata:", err);
+        showNotification("Vazife eklenirken bir hata oluştu.", "error");
+    }
 };
 
 export const STATIC_CURRICULUM = [
@@ -307,6 +352,18 @@ export function renderCurriculumTab() {
                     }).join('')}
                 </div>
             </div>
+            <div class="mt-6 p-5 bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl space-y-3 shadow-sm">
+    <div class="flex items-center gap-2">
+        <span class="text-xl">✨</span>
+        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Özel Vazife Tanımla</h4>
+    </div>
+    <div class="flex gap-2">
+        <input type="text" id="custom-task-input" placeholder="Örn: Ekstra risale mütalaası yapıldı..." class="flex-1 bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500">
+        <button onclick="handleAddNewCustomTask()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl text-xs border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm active:translate-y-0.5 transition-all">
+            Ekle
+        </button>
+    </div>
+</div>
         </div>
     `;
 }
