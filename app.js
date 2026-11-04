@@ -56,10 +56,10 @@ async function processDailyCheck() {
         // O gün tamamlanan vazifeler
         const completedTasks = tasks.filter(t => t.completed);
         
-        // Şart 1: Kur'an, Mütalaa ve Yazı (Osmanlıca) alanlarından en az birer tane tamamlanmış mı?
+        // Şart 1: Kur'an, Mütalaa ve Yazı alanlarından en az birer tane tamamlanmış mı?
         const hasKuran = completedTasks.some(t => t.category === "Kur'an");
-        const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa" || t.category === "Arapça");
-        const hasYazi = completedTasks.some(t => t.category === "Osmanlıca" || t.category === "Yazı");
+        const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa");
+        const hasYazi = completedTasks.some(t => t.category === "Yazı");
         
         const coreCategoriesMet = hasKuran && hasMutalaa && hasYazi;
         
@@ -104,19 +104,19 @@ function getTreePhaseDisplay(phase) {
     if (!phase) phase = 'tohum1';
     if (phase.startsWith('tohum')) {
         const sub = phase.replace('tohum', '');
-        return { icon: '🌰', title: `Tohum Evresi (Seviye ${sub}/3)`, desc: 'İlim yolculuğunun ilk adımları, toprak altındaki hazırlık.' };
+        return { icon: '🌰', title: `Tohum Fazı (Seviye ${sub})`, desc: 'İlim yolculuğunun ilk adımları, toprak altındaki hazırlık.' };
     } else if (phase.startsWith('filiz')) {
         const sub = phase.replace('filiz', '');
-        return { icon: '🌱', title: `Filiz Evresi (Seviye ${sub}/3)`, desc: 'İstikrarla birlikte ilim fidanı topraktan baş gösteriyor.' };
+        return { icon: '🌱', title: `Filiz Fazı (Seviye ${sub})`, desc: 'İstikrarla birlikte ilim fidanı topraktan baş gösteriyor.' };
     } else if (phase.startsWith('fide')) {
         const sub = phase.replace('fide', '');
-        return { icon: '🌿', title: `Fide Evresi (Seviye ${sub}/3)`, desc: 'Kökler sağlamlaşıyor, fidan boy atmaya başladı.' };
+        return { icon: '🌿', title: `Fide Fazı (Seviye ${sub})`, desc: 'Kökler sağlamlaşıyor, fidan boy atmaya başladı.' };
     } else if (phase.startsWith('cicek')) {
         const sub = phase.replace('cicek', '');
-        return { icon: '🌸', title: `Çiçek Evresi (Seviye ${sub}/3)`, desc: 'Gayretler meyve vermeye başladı, manevi manzaralar açılıyor.' };
+        return { icon: '🌸', title: `Çiçek Fazı (Seviye ${sub})`, desc: 'Gayretler meyve vermeye başladı, manevi manzaralar açılıyor.' };
     } else if (phase.startsWith('meyve')) {
         const sub = phase.replace('meyve', '');
-        return { icon: '🍎', title: `Meyve Evresi (Seviye ${sub})`, desc: 'Zirve ilim ve olgunluk dönemi, istikrarın en güzel meyvesi.' };
+        return { icon: '🍎', title: `Meyve Fazı (Seviye ${sub})`, desc: 'Zirve ilim ve olgunluk dönemi, istikrarın en güzel meyvesi.' };
     }
     return { icon: '🌳', title: 'İlim Ağacı', desc: 'Gelişimi sürdürün.' };
 }
@@ -473,14 +473,8 @@ function render() {
                 <div class="max-w-md mx-auto flex justify-around items-center">
                     <button onclick="switchTab('dashboard')" class="flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all ${state.activeTab === 'dashboard' ? 'text-emerald-600 font-black scale-105' : 'text-slate-400 hover:text-slate-600 font-bold'}">
                         <span class="text-xl">🌳</span>
-                        <span class="text-[10px] uppercase font-black">Ağaç</span>
+                        <span class="text-[10px] uppercase font-black">Bitki</span>
                     </button>
-
-                    <button onclick="switchTab('müfredat')" class="flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all ${state.activeTab === 'müfredat' ? 'text-emerald-600 font-black scale-105' : 'text-slate-400 hover:text-slate-600 font-bold'}">
-                        <span class="text-xl">📖</span>
-                        <span class="text-[10px] uppercase font-black">Müfredat</span>
-                    </button>
-
                     <button onclick="switchTab('istatistik')" class="flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all ${state.activeTab === 'istatistik' ? 'text-emerald-600 font-black scale-105' : 'text-slate-400 hover:text-slate-600 font-bold'}">
                         <span class="text-xl">📊</span>
                         <span class="text-[10px] uppercase font-black">Analiz</span>
@@ -523,8 +517,8 @@ function renderLoginScreen() {
         <div class="flex items-center justify-center w-full h-full bg-stone-100 p-4">
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 p-8 rounded-3xl w-full max-w-md space-y-6 shadow-md">
                 <div class="text-center space-y-2">
-                    <div class="inline-block p-4 bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 rounded-2xl text-emerald-600 text-3xl mb-2 shadow-sm">🏰</div>
-                    <h2 class="text-2xl font-black text-slate-800">Medrese Gelişim</h2>
+                    <div class="inline-block p-4 bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 rounded-2xl text-emerald-600 text-3xl mb-2 shadow-sm">🏠</div>
+                    <h2 class="text-2xl font-black text-slate-800">Medrese İhtisas Programı</h2>
                     <p class="text-xs text-slate-500 font-medium">Devam etmek için e-posta ve şifrenizi girin</p>
                 </div>
                 <form onsubmit="handleAuth(event)" class="space-y-4">
@@ -536,7 +530,7 @@ function renderLoginScreen() {
                         <label class="block text-xs font-black text-slate-700 mb-1 uppercase tracking-wider">Şifre</label>
                         <input type="password" id="login-password" required class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-3 text-slate-800 text-sm focus:outline-none focus:border-emerald-500 font-medium">
                     </div>
-                    <button type="submit" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black border-2 border-emerald-600 border-b-4 border-b-emerald-700 rounded-2xl text-sm transition-all shadow-md active:translate-y-0.5">Giriş Yap / Devam Et</button>
+                    <button type="submit" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black border-2 border-emerald-600 border-b-4 border-b-emerald-700 rounded-2xl text-sm transition-all shadow-md active:translate-y-0.5">Giriş Yap / Kayıt Ol</button>
                 </form>
             </div>
         </div>
@@ -622,7 +616,7 @@ function renderDashboard() {
                 <div class="flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-black text-slate-800">📋 Günün Vazifeleri</h3>
-                        <p class="text-xs text-slate-500 font-medium">Adımları tamamla, ağacını ve fazını büyüt!</p>
+                        <p class="text-xs text-slate-500 font-medium">Vazifelerini tamamla, bitkini ve seviyeni büyüt!</p>
                     </div>
                     
                     <div class="flex items-center gap-2">
@@ -632,7 +626,7 @@ function renderDashboard() {
                         </button>
 
                         <button onclick="switchTab('müfredat')" class="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-amber-950 border-2 border-amber-500 border-b-4 border-b-amber-600 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-1.5">
-                            <span>📖</span> Müfredat & Ekle
+                            <span>📖</span> Kur Listesi
                         </button>
                     </div>
                 </div>
@@ -668,7 +662,7 @@ function renderDashboard() {
                     }).join('') : `
                         <div class="text-center py-12 px-4 border-2 border-dashed border-stone-300 rounded-3xl bg-stone-50 space-y-4">
                             <p class="text-sm font-bold text-slate-700">Programınızda henüz vazife bulunmuyor.</p>
-                            <button onclick="switchTab('müfredat')" class="px-6 py-3 bg-emerald-500 text-white font-black rounded-2xl text-sm shadow-md">Müfredata Git</button>
+                            <button onclick="switchTab('müfredat')" class="px-6 py-3 bg-emerald-500 text-white font-black rounded-2xl text-sm shadow-md">Vazife Ekle</button>
                         </div>
                     `}
                 </div>
@@ -689,10 +683,10 @@ function renderStats() {
     const historyCompleted = state.completedHistory || [];
     const allCompleted = [...activeCompleted, ...historyCompleted];
     
-    const categories = ["Kur'an", "Osmanlıca", "Ezber", "Mütalaa", "Özel"];
+    const categories = ["Kur'an", "Yazı", "Ezber", "Mütalaa", "Özel"];
     
     const categoryStats = categories.map(cat => {
-        const catCompleted = allCompleted.filter(t => t.category === cat || (cat === 'Mütalaa' && t.category === 'Arapça') || (cat === 'Osmanlıca' && t.category === 'Yazı')).length;
+        const catCompleted = allCompleted.filter(t => t.category === cat || (cat === 'Mütalaa' && t.category === 'Arapça') || (cat === 'Yazı' && t.category === 'Yazı')).length;
         return { category: cat, completed: catCompleted };
     }).filter(c => c.completed > 0);
 
@@ -956,7 +950,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k1_t1', title: "Kur'an-ı Kerim (Yüzünden / 1 Cüz)", category: "Kur'an" },
             { id: 'k1_t2', title: "Risale-i Nur Mütalaası (5 Sayfa)", category: "Mütalaa" },
-            { id: 'k1_t3', title: "Osmanlıca Temel Metin Okuma", category: "Yazı" },
+            { id: 'k1_t3', title: "Yazı Temel Metin Okuma", category: "Yazı" },
             { id: 'k1_t4', title: "Temel Ezber (Kısa Sureler)", category: "Ezber" }
         ]
     },
@@ -967,7 +961,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k2_t1', title: "Kur'an-ı Kerim (1 Cüz)", category: "Kur'an" },
             { id: 'k2_t2', title: "Risale-i Nur Mütalaası (10 Sayfa)", category: "Mütalaa" },
-            { id: 'k2_t3', title: "Osmanlıca Yazma ve Metin Çözümleme", category: "Yazı" },
+            { id: 'k2_t3', title: "Yazı Yazma ve Metin Çözümleme", category: "Yazı" },
             { id: 'k2_t4', title: "Arapça Sarf Çalışması (Emsile)", category: "Mütalaa" }
         ]
     },
@@ -978,7 +972,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k3_t1', title: "Kur'an-ı Kerim (1 Cüz)", category: "Kur'an" },
             { id: 'k3_t2', title: "Risale-i Nur Mütalaası (15 Sayfa)", category: "Mütalaa" },
-            { id: 'k3_t3', title: "Osmanlıca Arşiv Metinleri Okuması", category: "Yazı" },
+            { id: 'k3_t3', title: "Yazı Arşiv Metinleri Okuması", category: "Yazı" },
             { id: 'k3_t4', title: "Arapça Sarf (Bina / Avamil)", category: "Mütalaa" }
         ]
     },
@@ -989,7 +983,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k4_t1', title: "Kur'an-ı Kerim Mukabele", category: "Kur'an" },
             { id: 'k4_t2', title: "Risale-i Nur Mütalaası (20 Sayfa)", category: "Mütalaa" },
-            { id: 'k4_t3', title: "Osmanlıca Süratli Metin Okuma", category: "Yazı" },
+            { id: 'k4_t3', title: "Yazı Süratli Metin Okuma", category: "Yazı" },
             { id: 'k4_t4', title: "Arapça Nahiv (İzhari)", category: "Mütalaa" }
         ]
     },
@@ -1000,7 +994,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k5_t1', title: "Kur'an-ı Kerim & Tefsir Okuması", category: "Kur'an" },
             { id: 'k5_t2', title: "Risale-i Nur Külliyatı Mütalaası", category: "Mütalaa" },
-            { id: 'k5_t3', title: "Osmanlıca Edebi Metin Analizi", category: "Yazı" },
+            { id: 'k5_t3', title: "Yazı Edebi Metin Analizi", category: "Yazı" },
             { id: 'k5_t4', title: "Arapça Nahiv (Kafiye)", category: "Mütalaa" }
         ]
     },
@@ -1011,7 +1005,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k6_t1', title: "Kur'an-ı Kerim Hafızlık / Tekrar", category: "Kur'an" },
             { id: 'k6_t2', title: "Ali Mütalaa ve Tahlil Çalışması", category: "Mütalaa" },
-            { id: 'k6_t3', title: "Osmanlıca Hüsn-i Hat / Yazı Çalışması", category: "Yazı" },
+            { id: 'k6_t3', title: "Yazı Hüsn-i Hat / Yazı Çalışması", category: "Yazı" },
             { id: 'k6_t4', title: "Fıkıh Usulü Mütalaası", category: "Mütalaa" }
         ]
     },
@@ -1022,7 +1016,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k7_t1', title: "Kur'an-ı Kerim Mukabele", category: "Kur'an" },
             { id: 'k7_t2', title: "Akâid ve Kelam Mütalaası", category: "Mütalaa" },
-            { id: 'k7_t3', title: "Osmanlıca Divan Edebiyatı Metinleri", category: "Yazı" },
+            { id: 'k7_t3', title: "Yazı Divan Edebiyatı Metinleri", category: "Yazı" },
             { id: 'k7_t4', title: "Arapça Şerhli Metin Okumaları", category: "Mütalaa" }
         ]
     },
@@ -1033,7 +1027,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k8_t1', title: "Tefsir Usulü ve Kur'an Araştırması", category: "Kur'an" },
             { id: 'k8_t2', title: "Hadis Metinleri Mütalaası", category: "Mütalaa" },
-            { id: 'k8_t3', title: "Osmanlıca Belagat Metinleri", category: "Yazı" },
+            { id: 'k8_t3', title: "Yazı Belagat Metinleri", category: "Yazı" },
             { id: 'k8_t4', title: "İleri Düzey Belagat (Maânî)", category: "Mütalaa" }
         ]
     },
@@ -1044,7 +1038,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k9_t1', title: "Kur'an-ı Kerim Araştırmaları", category: "Kur'an" },
             { id: 'k9_t2', title: "İleri Mütalaa & Müzakere", category: "Mütalaa" },
-            { id: 'k9_t3', title: "Osmanlıca Telif ve Rapor Hazırlama", category: "Yazı" },
+            { id: 'k9_t3', title: "Yazı Telif ve Rapor Hazırlama", category: "Yazı" },
             { id: 'k9_t4', title: "İslam Tarihi ve Siyer Mütalaası", category: "Mütalaa" }
         ]
     },
@@ -1055,7 +1049,7 @@ const STATIC_CURRICULUM = [
         tasks: [
             { id: 'k10_t1', title: "Kur'an-ı Kerim Hatim ve Hafızlık İkmali", category: "Kur'an" },
             { id: 'k10_t2', title: "Külliyat ve Tedrisat Mütalaası", category: "Mütalaa" },
-            { id: 'k10_t3', title: "Osmanlıca Klasik Eser İncelemesi", category: "Yazı" },
+            { id: 'k10_t3', title: "Yazı Klasik Eser İncelemesi", category: "Yazı" },
             { id: 'k10_t4', title: "İlmi Araştırma ve Müzakere", category: "Mütalaa" }
         ]
     }
@@ -1099,7 +1093,7 @@ function renderCurriculumTab() {
                     <div class="space-y-3 text-xs text-sky-900 font-medium leading-relaxed">
                         <div class="bg-white/80 p-4 rounded-2xl border border-sky-200 space-y-1">
                             <strong class="text-sky-950 font-black block text-sm">1. Temel Üçlü Şartı (Koruma Kuralı):</strong>
-                            <p>Sistemin sürdürülebilir olması için her gün mutlaka <strong>Kur'an</strong>, <strong>Mütalaa</strong> ve <strong>Yazı (Osmanlıca)</strong> alanlarının <em>her birinden</em> en az birer vazife tamamlamalısınız.</p>
+                            <p>Sistemin sürdürülebilir olması için her gün mutlaka <strong>Kur'an</strong>, <strong>Mütalaa</strong> ve <strong>Yazı (Yazı)</strong> alanlarının <em>her birinden</em> en az birer vazife tamamlamalısınız.</p>
                         </div>
                         <div class="bg-white/80 p-4 rounded-2xl border border-sky-200 space-y-1">
                             <strong class="text-sky-950 font-black block text-sm">2. Seviye Sıfırlanma Durumu:</strong>
@@ -1173,7 +1167,7 @@ function renderCurriculumTab() {
                     <select id="personal-task-category" class="bg-stone-50 border-2 border-stone-200 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
                         <option value="Kur'an">📖 Kur'an</option>
                         <option value="Mütalaa">📚 Mütalaa</option>
-                        <option value="Yazı">📜 Yazı / Osmanlıca</option>
+                        <option value="Yazı">📜 Yazı</option>
                         <option value="Ezber">🎙️ Ezber</option>
                         <option value="Özel">✨ Özel</option>
                     </select>
