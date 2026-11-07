@@ -7,11 +7,8 @@ window.toggleStudentCard = function(studentId) {
 };
 
 export function renderSupervisor() {
-    if (state.role === 'sorumlu' && (!state.students || state.students.length === 0) && !state.isLoadingStudents) {
-        loadStudents().then(() => {
-            if (state.activeTab === 'sorumlu-paneli') window.render();
-        });
-    }
+    // BURADAKİ TETİKLEME KALDIRILDI (Sonsuz döngüyü önlemek için)
+    // Artık veri yüklemesi sekme değişiminde güvenli bir şekilde yapılıyor.
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 pb-12 animate-fadeIn">
@@ -44,7 +41,6 @@ export function renderSupervisor() {
                         }
                     }
                     
-                    // Kullanıcının adı soyadı kayıtlı değilse e-postanın başını gösterelim
                     const displayName = s.fullName ? s.fullName : (s.email ? s.email.split('@')[0] : 'İsimsiz Talebe');
 
                     return `
@@ -101,7 +97,7 @@ export function renderSupervisor() {
                 }).join('') : `
                     <div class="text-center py-12 bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl shadow-sm space-y-3">
                         <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-2xl">👥</div>
-                        <p class="text-sm font-bold text-slate-700">Sistemde kayıtlı talebe bulunamadı.</p>
+                        <p class="text-sm font-bold text-slate-700">Sistemde size bağlı talebe bulunamadı.</p>
                     </div>
                 `}
             </div>

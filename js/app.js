@@ -11,7 +11,7 @@ import { renderSupervisor } from './sorumlu.js';
 import { renderSettings } from './ayarlar.js';
 import { loadStudents } from './state.js';
 
-// Şık Giriş / Kayıt Ekranı Tasarımı (Ad Soyad Alanı Eklendi)
+// Şık Giriş / Kayıt Ekranı Tasarımı (Referans Alanı Kayıt Moduna Taşındı)
 function renderLoginScreen() {
     return `
         <div class="flex items-center justify-center w-full h-screen bg-stone-100 p-4">
@@ -34,6 +34,13 @@ function renderLoginScreen() {
                         <label class="block text-xs font-black text-slate-700 mb-1 uppercase tracking-wider">Şifre</label>
                         <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-3 text-slate-800 text-sm focus:outline-none focus:border-emerald-500 font-medium">
                     </div>
+                    
+                    <!-- SADECE KAYIT OLURKEN GÖSTERİLECEK REFERANS KODU ALANI -->
+                    <div id="referral-field-container" class="hidden">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Sorumlu Referans Kodu (Varsa)</label>
+                        <input type="text" id="signup-referral" placeholder="Örn: MEDRESE-A1B2C3" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 uppercase">
+                    </div>
+
                     <button type="submit" id="auth-submit-btn" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black border-2 border-emerald-600 border-b-4 border-b-emerald-700 rounded-2xl text-sm transition-all shadow-md active:translate-y-0.5">Giriş Yap</button>
                     
                     <div class="text-center pt-2">
@@ -52,17 +59,20 @@ window.isRegisterMode = false;
 window.toggleAuthMode = function() {
     window.isRegisterMode = !window.isRegisterMode;
     const nameContainer = document.getElementById('name-field-container');
+    const referralContainer = document.getElementById('referral-field-container');
     const submitBtn = document.getElementById('auth-submit-btn');
     const modeText = document.getElementById('auth-mode-text');
     const nameInput = document.getElementById('login-name');
 
     if (window.isRegisterMode) {
         nameContainer.classList.remove('hidden');
+        referralContainer.classList.remove('hidden'); // Kayıtta referans kodu görünür
         nameInput.required = true;
         submitBtn.textContent = "Kayıt Ol";
         modeText.textContent = "Giriş Yap";
     } else {
         nameContainer.classList.add('hidden');
+        referralContainer.classList.add('hidden'); // Girişte referans kodu gizlenir
         nameInput.required = false;
         submitBtn.textContent = "Giriş Yap";
         modeText.textContent = "Kayıt Ol";
@@ -140,8 +150,10 @@ window.handleAuth = async function(e) {
     const pass = document.getElementById('login-password').value.trim();
     const nameInput = document.getElementById('login-name');
     const fullName = nameInput ? nameInput.value.trim() : '';
+    const referralInput = document.getElementById('signup-referral');
+    const referralCode = referralInput ? referralInput.value.trim().toUpperCase() : '';
 
-    // E-posta format denetimi (sadece @ yetmez, nokta ve uzantı da olmalı)
+    // E-posta format denetimi
     if (!isValidEmail(email)) {
         showNotification("Lütfen geçerli bir e-posta adresi girin (örn: isim@site.com)", "error");
         return;
@@ -157,11 +169,12 @@ window.handleAuth = async function(e) {
             const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
             const user = userCredential.user;
             
-            // Kullanıcı dokümanına ad soyad bilgisini de kaydedelim
+            // Kullanıcı dokümanına ad soyad ve bağlı olduğu sorumlu kodunu kaydedelim
             await setDoc(doc(db, "users", user.uid), {
                 email: email,
                 fullName: fullName,
                 role: "normal",
+                referredBy: referralCode || null, // Kayıtta girilen referans kodu
                 treePhase: "tohum1",
                 streak: 0,
                 tasks: [],

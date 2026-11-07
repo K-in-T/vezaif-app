@@ -3,6 +3,16 @@ import { state, saveUserData, showNotification } from './state.js';
 
 const { doc, updateDoc } = window.firebaseModules;
 
+const CATEGORY_OPTIONS = [
+    "Kur'ân-ı Kerim",
+    "Risale-i Nur Mütalaası",
+    "Ezber Çalışması",
+    "Yazı Çalışması",
+    "Okunacak Kitaplar",
+    "Mütalaa Verme Çalışması",
+    "Özel"
+];
+
 window.selectedCourseLevel = window.selectedCourseLevel || 1;
 window.showCurriculumInfoModal = window.showCurriculumInfoModal || false;
 window.toggleCurriculumInfoModal = function() {
@@ -12,18 +22,19 @@ window.toggleCurriculumInfoModal = function() {
 
 window.handleAddNewCustomTask = async function() {
     const input = document.getElementById('custom-task-input');
+    const categorySelect = document.getElementById('custom-task-category');
     const title = input ? input.value.trim() : '';
+    const category = categorySelect ? categorySelect.value : 'Özel';
     
     if (!title) {
         showNotification("Lütfen vazife başlığı girin.", "error");
         return;
     }
 
-    // Benzersiz ID ve "Özel" kategorisi ile yeni görev oluşturalım
     const newTask = {
         id: 'custom_' + Date.now(),
         title: title,
-        category: "Özel",
+        category: category,
         completed: false
     };
 
@@ -31,11 +42,9 @@ window.handleAddNewCustomTask = async function() {
         state.tasks = [];
     }
 
-    // Listeye ekleyelim
     state.tasks.push(newTask);
 
     try {
-        // Firestore üzerindeki kullanıcı verisini güncelleyelim
         if (state.user) {
             const userRef = doc(db, "users", state.user.uid);
             await updateDoc(userRef, {
@@ -45,10 +54,10 @@ window.handleAddNewCustomTask = async function() {
 
         input.value = '';
         showNotification("Özel vazife başarıyla eklendi!", "success");
-        window.render(); // Ekranı güncelleyelim
+        window.render();
     } catch (err) {
         console.error("Özel vazife eklenirken hata:", err);
-        showNotification("Vazife eklenirken bir hata oluştu.", "error");
+        showNotification("Özel vazife eklenirken bir hata oluştu.", "error");
     }
 };
 
@@ -957,7 +966,6 @@ export const STATIC_CURRICULUM = [
 export function renderCurriculumTab() {
     const currentCourse = STATIC_CURRICULUM.find(c => c.level === window.selectedCourseLevel) || STATIC_CURRICULUM[0];
 
-    // Görevleri kategorilerine (alanlarına) göre gruplayalım
     const groupedTasks = {};
     currentCourse.tasks.forEach(item => {
         if (!groupedTasks[item.category]) {
@@ -966,7 +974,6 @@ export function renderCurriculumTab() {
         groupedTasks[item.category].push(item);
     });
 
-    // Kategori bazlı ikon ve renk tanımlamaları
     const categoryStyles = {
         "Kur'ân-ı Kerim": { icon: '📖', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
         "Risale-i Nur Mütalaası": { icon: '📚', bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-800', badge: 'bg-sky-100 text-sky-800 border-sky-300' },
@@ -976,6 +983,16 @@ export function renderCurriculumTab() {
         "Mütalaa Verme Çalışması": { icon: '📝', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-800', badge: 'bg-pink-100 text-pink-800 border-pink-300' },
         "Özel": { icon: '✨', bg: 'bg-stone-50', border: 'border-stone-200', text: 'text-stone-800', badge: 'bg-stone-200 text-stone-800 border-stone-300' }
     };
+
+    const CATEGORY_OPTIONS = [
+        "Kur'ân-ı Kerim",
+        "Risale-i Nur Mütalaası",
+        "Ezber Çalışması",
+        "Yazı Çalışması",
+        "Okunacak Kitaplar",
+        "Mütalaa Verme Çalışması",
+        "Özel"
+    ];
 
     return `
         <div class="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
@@ -1129,7 +1146,6 @@ export function renderCurriculumTab() {
                 </div>
             ` : ''}
 
-            <!-- KUR SEÇİM BUTONLARI -->
             <div class="bg-white p-4 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 shadow-sm overflow-x-auto flex items-center gap-2">
                 ${STATIC_CURRICULUM.map(c => `
                     <button onclick="setCourseLevel(${c.level})" class="px-4 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${window.selectedCourseLevel === c.level ? 'bg-emerald-500 text-white border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm' : 'bg-stone-50 text-slate-500 hover:text-slate-800 border-2 border-stone-200'}">
@@ -1174,18 +1190,22 @@ export function renderCurriculumTab() {
                     }).join('')}
                 </div>
             </div>
-            <div class="mt-6 p-5 bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl space-y-3 shadow-sm">
-    <div class="flex items-center gap-2">
-        <span class="text-xl">✨</span>
-        <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Özel Vazife Tanımla</h4>
-    </div>
-    <div class="flex gap-2">
-        <input type="text" id="custom-task-input" placeholder="Örn: Ekstra risale mütalaası yapıldı..." class="flex-1 bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500">
-        <button onclick="handleAddNewCustomTask()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl text-xs border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm active:translate-y-0.5 transition-all">
-            Ekle
-        </button>
-    </div>
-</div>
+
+            <div class="mt-6 p-5 bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl space-y-3 shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl">✨</span>
+                                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Özel Vazife Tanımla</h4>
+                                </div>
+                                <div class="flex flex-col sm:flex-row gap-2">
+                                    <input type="text" id="custom-task-input" placeholder="Vazife başlığı..." class="flex-1 bg-white border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500">
+                                    <select id="custom-task-category" class="bg-white border-2 border-stone-200 rounded-2xl px-3 py-2.5 text-xs text-slate-700 font-bold focus:outline-none focus:border-emerald-500">
+                                        ${CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                                    </select>
+                                    <button onclick="handleAddNewCustomTask()" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl text-xs border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm active:translate-y-0.5 transition-all">
+                                        Ekle
+                                    </button>
+                                </div>
+                            </div>
         </div>
     `;
 }
@@ -1225,4 +1245,56 @@ window.toggleTaskSelection = async function(currId) {
     
     await saveUserData();
     window.render();
+};
+
+
+window.openEditTaskModal = function(taskId) {
+    const task = (state.tasks || []).find(t => String(t.id) === String(taskId));
+    if (task) {
+        window.editingTask = { ...task };
+        window.render();
+    }
+};
+
+window.closeEditTaskModal = function() {
+    window.editingTask = null;
+    window.render();
+};
+
+window.saveEditedTask = async function() {
+    if (!window.editingTask) return;
+
+    const titleInput = document.getElementById('edit-task-title');
+    const categorySelect = document.getElementById('edit-task-category');
+    
+    const newTitle = titleInput ? titleInput.value.trim() : '';
+    const newCategory = categorySelect ? categorySelect.value : 'Özel';
+
+    if (!newTitle) {
+        showNotification("Vazife başlığı boş olamaz.", "error");
+        return;
+    }
+
+    state.tasks = state.tasks.map(t => {
+        if (String(t.id) === String(window.editingTask.id)) {
+            return { ...t, title: newTitle, category: newCategory };
+        }
+        return t;
+    });
+
+    try {
+        if (state.user) {
+            const userRef = doc(db, "users", state.user.uid);
+            await updateDoc(userRef, {
+                tasks: state.tasks
+            });
+        }
+
+        window.editingTask = null;
+        showNotification("Vazife güncellendi.", "success");
+        window.render();
+    } catch (err) {
+        console.error("Vazife güncellenirken hata:", err);
+        showNotification("Güncellenirken hata oluştu.", "error");
+    }
 };

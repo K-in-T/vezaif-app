@@ -1,5 +1,6 @@
 import { db } from '../firebase-config.js';
 const { doc, getDoc, setDoc, updateDoc } = window.firebaseModules;
+// where ve query kaldırıldı, hata ihtimali tamamen ortadan kaldırıldı
 const { collection, getDocs } = window.firebaseModules;
 
 export let state = {
@@ -11,14 +12,21 @@ export let state = {
     streak: 0,
     consecutiveFailures: 0,
     lastCheckDate: null,
+    referralCode: null,
+    referredBy: null,
     tasks: [],
     completedHistory: [],
     journals: [],
-    students: []
+    students: [],
+    isLoadingStudents: false
 };
 
+// Rastgele harf ve sayılardan oluşan referans kodu üreteci
+function generateReferralCode() {
+    return 'MEDRESE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 export async function loadStudents() {
-    // Halihazırda çekiliyorsa üst üste tetiklenmesini önle
     if (state.isLoadingStudents) return;
     
     // Sadece sorumlu kullanıcılar bu veriyi çekebilmeli
@@ -30,12 +38,21 @@ export async function loadStudents() {
     state.isLoadingStudents = true;
 
     try {
+        const currentRefCode = state.referralCode;
+        if (!currentRefCode) {
+            state.students = [];
+            state.isLoadingStudents = false;
+            return;
+        }
+
+        // Tüm kullanıcıları çekip Javascript içinde sorumlunun koduyla (referredBy) eşleşenleri filtreliyoruz
         const querySnapshot = await getDocs(collection(db, "users"));
+        
         state.students = [];
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            // Kendini öğrenci listesinde göstermesin
-            if (docSnap.id !== state.user?.uid) {
+            // Kendisi haricinde ve sadece bu sorumlunun referans koduna sahip talebeleri listeye ekle
+            if (docSnap.id !== state.user?.uid && data.referredBy === currentRefCode) {
                 state.students.push({
                     id: docSnap.id,
                     ...data
@@ -84,6 +101,8 @@ export async function saveUserData() {
             treeState: state.treeState,
             treePhase: state.treePhase,
             lastCheckDate: state.lastCheckDate,
+            referralCode: state.referralCode,
+            referredBy: state.referredBy,
             tasks: state.tasks,
             completedHistory: state.completedHistory,
             journals: state.journals
@@ -107,11 +126,29 @@ export async function loadUserData(userUid) {
             state.journals = Array.isArray(data.journals) ? data.journals : [];
             state.lastCheckDate = data.lastCheckDate || null;
             state.streak = data.streak || 0;
+            state.referredBy = data.referredBy || null;
+
+            // Eğer kullanıcı sorumlu ise ve veritabanında kodu yoksa yeni bir tane üretip kaydedelim
+            if (state.role === 'sorumlu') {
+                if (data.referralCode) {
+                    state.referralCode = data.referralCode;
+                } else {
+                    state.referralCode = generateReferralCode();
+                    await updateDoc(userRef, { referralCode: state.referralCode });
+                }
+            } else {
+                state.referralCode = data.referralCode || null;
+            }
+
         } else {
+            // Yeni kullanıcı ilk defa oluşturuluyorsa (Kayıt ekranında zaten setDoc yapılıyor ama güvenlik amaçlı)
+            const generatedCode = generateReferralCode();
             const defaultUserData = {
                 email: state.user ? state.user.email : '',
                 role: 'normal',
                 treePhase: 'tohum1',
+                referralCode: generatedCode,
+                referredBy: null,
                 tasks: [],
                 completedHistory: [],
                 journals: [],
@@ -119,9 +156,11 @@ export async function loadUserData(userUid) {
                 lastCheckDate: getTodayString(),
                 createdAt: new Date().toISOString()
             };
-            await setDoc(userRef, defaultUserData);
+            await setDoc(userRef, defaultUserData, { merge: true });
             state.role = defaultUserData.role;
             state.treePhase = defaultUserData.treePhase;
+            state.referralCode = defaultUserData.referralCode;
+            state.referredBy = defaultUserData.referredBy;
         }
     } catch (err) {
         console.error("Kullanıcı verisi yüklenemedi:", err);

@@ -4,6 +4,16 @@ import { db } from '../firebase-config.js';
 const { doc, updateDoc } = window.firebaseModules;
 const BASE_PHASES = ['tohum1', 'tohum2', 'filiz1', 'filiz2', 'fide1', 'fide2', 'cicek1', 'cicek2', 'meyve1', 'meyve2'];
 
+const CATEGORY_OPTIONS = [
+    "Kur'ân-ı Kerim",
+    "Risale-i Nur Mütalaası",
+    "Ezber Çalışması",
+    "Yazı Çalışması",
+    "Okunacak Kitaplar",
+    "Mütalaa Verme Çalışması",
+    "Özel"
+];
+
 function getPhaseLevelIndex(phase) {
     if (!phase) return 0;
     const index = BASE_PHASES.indexOf(phase);
@@ -78,7 +88,6 @@ export async function processDailyCheck() {
 export function renderDashboard() {
     const treeInfo = getTreePhaseDisplay(state.treePhase || 'tohum1');
 
-    // Silinen sabit görevleri ve listeden düşenleri filtreleyelim
     const activeTasks = (state.tasks || []).filter(task => {
         const isDeletedInArray = state.deletedTaskIds && state.deletedTaskIds.includes(task.id);
         return !isDeletedInArray;
@@ -98,7 +107,6 @@ export function renderDashboard() {
                     </div>
                 </div>
 
-                <!-- SAĞ TARAFTA: SERİ SAYACI VE BİLGİ BUTONU -->
                 <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-stone-100">
                     <div class="bg-amber-50 border-2 border-amber-200 border-b-3 border-b-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2.5 shadow-sm">
                         <span class="text-xl">🔥</span>
@@ -115,7 +123,6 @@ export function renderDashboard() {
 
             </div>
 
-            <!-- FAZ DETAY MODALI -->
             ${window.showPhaseModal ? `
                 <div class="bg-sky-50 border-2 border-sky-300 border-b-4 border-b-sky-400 rounded-3xl p-6 space-y-3 text-xs text-sky-900 animate-fadeIn shadow-sm">
                     <div class="flex justify-between items-center font-black border-b-2 border-sky-200 pb-2">
@@ -147,23 +154,59 @@ export function renderDashboard() {
                 </div>
 
                 <div class="space-y-3.5">
-                    ${activeTasks.length > 0 ? activeTasks.map(task => `
-                        <div class="p-4 md:p-5 rounded-2xl ${task.completed ? 'bg-emerald-50/80 border-2 border-emerald-300 border-b-4 border-b-emerald-400' : 'bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300'} transition-all flex items-center justify-between gap-4">
-                            <div class="flex items-center gap-4">
-                                <!-- ID tırnak içine alındı -->
-                                <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete('${task.id}')" class="w-6 h-6 accent-emerald-500 cursor-pointer">
-                                <div>
-                                    <h4 class="font-bold text-sm text-slate-800 ${task.completed ? 'line-through text-slate-400' : ''}">${task.title}</h4>
-                                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-stone-200 text-stone-700">${task.category}</span>
+                    ${activeTasks.length > 0 ? activeTasks.map(task => {
+                        const isCustom = String(task.id).startsWith('custom_');
+                        return `
+                            <div class="p-4 md:p-5 rounded-2xl ${task.completed ? 'bg-emerald-50/80 border-2 border-emerald-300 border-b-4 border-b-emerald-400' : 'bg-stone-50 border-2 border-stone-200 border-b-4 border-b-stone-300'} transition-all flex items-center justify-between gap-4">
+                                <div class="flex items-center gap-4">
+                                    <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTaskComplete('${task.id}')" class="w-6 h-6 accent-emerald-500 cursor-pointer">
+                                    <div>
+                                        <h4 class="font-bold text-sm text-slate-800 ${task.completed ? 'line-through text-slate-400' : ''}">${task.title}</h4>
+                                        <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-stone-200 text-stone-700">${task.category}</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    ${isCustom ? `<button onclick="openEditTaskModal('${task.id}')" class="text-stone-400 hover:text-sky-600 text-xs font-black p-1.5" title="Düzenle">✏️</button>` : ''}
+                                    <button onclick="deleteTask('${task.id}')" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1.5" title="Sil">🗑️</button>
                                 </div>
                             </div>
-                            <!-- ID tırnak içine alındı -->
-                            <button onclick="deleteTask('${task.id}')" class="text-stone-400 hover:text-rose-600 text-xs font-black p-1">🗑️</button>
-                        </div>
-                    `).join('') : '<p class="text-center py-6 text-slate-400 text-xs">Vazife bulunmuyor. Kur listesinden ekleyebilirsiniz.</p>'}
+                        `;
+                    }).join('') : '<p class="text-center py-6 text-slate-400 text-xs">Vazife bulunmuyor. Kur listesinden ekleyebilirsiniz.</p>'}
                 </div>
             </div>
         </div>
+
+        <!-- VAZİFE DÜZENLEME MODALI -->
+        ${window.editingTask ? `
+            <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+                <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 w-full max-w-md space-y-4 shadow-xl">
+                    <div class="flex justify-between items-center border-b-2 border-stone-100 pb-3">
+                        <h4 class="text-sm font-black text-slate-800">✏️ Vazifeyi Düzenle</h4>
+                        <button onclick="closeEditTaskModal()" class="text-stone-400 hover:text-rose-600 font-black text-sm">✕</button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-black uppercase text-stone-500 mb-1">Vazife Başlığı</label>
+                            <input type="text" id="edit-task-title" value="${window.editingTask.title}" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black uppercase text-stone-500 mb-1">Kategori / Alan</label>
+                            <select id="edit-task-category" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-3 py-2.5 text-xs text-slate-700 font-bold focus:outline-none focus:border-emerald-500">
+                                ${CATEGORY_OPTIONS.map(cat => `<option value="${cat}" ${window.editingTask.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="saveEditedTask()" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl text-xs border-2 border-emerald-600 border-b-4 border-b-emerald-700 shadow-sm active:translate-y-0.5 transition-all">
+                            Kaydet
+                        </button>
+                        <button onclick="closeEditTaskModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-black rounded-2xl text-xs border-2 border-stone-200 border-b-4 border-b-stone-300">
+                            İptal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        ` : ''}
     `;
 }
 
@@ -176,7 +219,6 @@ window.toggleTaskComplete = async function(taskId) {
     if (!taskId) return;
     const todayStr = getTodayString();
 
-    // String/Number tip farkı gözetmeksizin güvenli eşleşme
     state.tasks = state.tasks.map(t => {
         if (String(t.id) === String(taskId)) {
             const nextCompleted = !t.completed;
@@ -196,10 +238,8 @@ window.toggleTaskComplete = async function(taskId) {
 window.deleteTask = async function(taskId) {
     if (!taskId) return;
 
-    // Yerel state'teki tasks listesinden çıkaralım
     state.tasks = (state.tasks || []).filter(t => String(t.id) !== String(taskId));
 
-    // Eğer özel vazife değilse deletedTaskIds listesine ekleyelim
     if (!String(taskId).startsWith('custom_')) {
         if (!state.deletedTaskIds) state.deletedTaskIds = [];
         if (!state.deletedTaskIds.includes(taskId)) {
@@ -212,7 +252,7 @@ window.deleteTask = async function(taskId) {
             const userRef = doc(db, "users", state.user.uid);
             await updateDoc(userRef, {
                 tasks: state.tasks,
-                deletedTaskIds: state.statedeletedTaskIds || state.deletedTaskIds || []
+                deletedTaskIds: state.deletedTaskIds || []
             });
         }
 
@@ -220,33 +260,45 @@ window.deleteTask = async function(taskId) {
         window.render();
     } catch (err) {
         console.error("Vazife silinirken hata:", err);
-        // Hata olsa bile arayüzü yenileyerek kullanıcının akışını bozmayalım
         showNotification("Vazife silindi.", "success");
         window.render();
     }
 };
 
-window.handleAddNewCustomTask = async function() {
-    const input = document.getElementById('custom-task-input');
-    const title = input ? input.value.trim() : '';
+// DÜZENLEME İŞLEMLERİ İÇİN EKLENEN GLOBAL FONKSİYONLAR
+window.openEditTaskModal = function(taskId) {
+    const task = (state.tasks || []).find(t => String(t.id) === String(taskId));
+    if (task) {
+        window.editingTask = { ...task };
+        window.render();
+    }
+};
+
+window.closeEditTaskModal = function() {
+    window.editingTask = null;
+    window.render();
+};
+
+window.saveEditedTask = async function() {
+    if (!window.editingTask) return;
+
+    const titleInput = document.getElementById('edit-task-title');
+    const categorySelect = document.getElementById('edit-task-category');
     
-    if (!title) {
-        showNotification("Lütfen vazife başlığı girin.", "error");
+    const newTitle = titleInput ? titleInput.value.trim() : '';
+    const newCategory = categorySelect ? categorySelect.value : 'Özel';
+
+    if (!newTitle) {
+        showNotification("Vazife başlığı boş olamaz.", "error");
         return;
     }
 
-    const newTask = {
-        id: 'custom_' + Date.now(),
-        title: title,
-        category: "Özel",
-        completed: false
-    };
-
-    if (!state.tasks) {
-        state.tasks = [];
-    }
-
-    state.tasks.push(newTask);
+    state.tasks = state.tasks.map(t => {
+        if (String(t.id) === String(window.editingTask.id)) {
+            return { ...t, title: newTitle, category: newCategory };
+        }
+        return t;
+    });
 
     try {
         if (state.user) {
@@ -256,11 +308,11 @@ window.handleAddNewCustomTask = async function() {
             });
         }
 
-        input.value = '';
-        showNotification("Özel vazife başarıyla eklendi!", "success");
+        window.editingTask = null;
+        showNotification("Vazife güncellendi.", "success");
         window.render();
     } catch (err) {
-        console.error("Özel vazife eklenirken hata:", err);
-        showNotification("Özel vazife eklenirken bir hata oluştu.", "error");
+        console.error("Vazife güncellenirken hata:", err);
+        showNotification("Güncellenirken hata oluştu.", "error");
     }
 };
