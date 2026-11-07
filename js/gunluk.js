@@ -54,7 +54,7 @@ export function renderJournalTab() {
 
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200 pb-4">
-                    <h3 class="text-lg font-black text-slate-800">📚 Geçmiş Vakit Analizlerim</h3>
+                    <h3 class="text-lg font-black text-slate-800">📚 Günlüklerim / Notlarım</h3>
                     <div class="w-full md:w-72">
                         <input type="text" id="journal-search-input" oninput="filterJournals(this.value)" value="${window.journalSearchQuery || ''}" placeholder="🔍 Günlüklerde ara..." class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500">
                     </div>

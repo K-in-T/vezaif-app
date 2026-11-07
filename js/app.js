@@ -18,13 +18,13 @@ function renderLoginScreen() {
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 p-8 rounded-3xl w-full max-w-md space-y-6 shadow-md">
                 <div class="text-center space-y-2">
                     <div class="inline-block p-4 bg-emerald-100 border-2 border-emerald-300 border-b-4 border-b-emerald-400 rounded-2xl text-emerald-600 text-3xl mb-2 shadow-sm">🏠</div>
-                    <h2 class="text-2xl font-black text-slate-800">Medrese İhtisas Programı</h2>
+                    <h2 class="text-2xl font-black text-slate-800">Manevi Gelişim Programı</h2>
                     <p class="text-xs text-slate-500 font-medium">Devam etmek için bilgilerinizi girin</p>
                 </div>
                 <form onsubmit="handleAuth(event)" class="space-y-4">
                     <div id="name-field-container" class="hidden">
                         <label class="block text-xs font-black text-slate-700 mb-1 uppercase tracking-wider">Ad Soyad</label>
-                        <input type="text" id="login-name" placeholder="Örn: Ahmet Yılmaz" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-3 text-slate-800 text-sm focus:outline-none focus:border-emerald-500 font-medium">
+                        <input type="text" id="login-name" placeholder="Abdullah Yılmaz" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-3 text-slate-800 text-sm focus:outline-none focus:border-emerald-500 font-medium">
                     </div>
                     <div>
                         <label class="block text-xs font-black text-slate-700 mb-1 uppercase tracking-wider">E-posta Adresi</label>
@@ -37,8 +37,8 @@ function renderLoginScreen() {
                     
                     <!-- SADECE KAYIT OLURKEN GÖSTERİLECEK REFERANS KODU ALANI -->
                     <div id="referral-field-container" class="hidden">
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Sorumlu Referans Kodu (Varsa)</label>
-                        <input type="text" id="signup-referral" placeholder="Örn: MEDRESE-A1B2C3" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 uppercase">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Referans Kodu (Varsa)</label>
+                        <input type="text" id="signup-referral" placeholder="Örn: A1B2C3" class="w-full bg-stone-50 border-2 border-stone-200 rounded-2xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:border-emerald-500 uppercase">
                     </div>
 
                     <button type="submit" id="auth-submit-btn" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black border-2 border-emerald-600 border-b-4 border-b-emerald-700 rounded-2xl text-sm transition-all shadow-md active:translate-y-0.5">Giriş Yap</button>

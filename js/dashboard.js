@@ -111,7 +111,7 @@ export function renderDashboard() {
                     <div class="bg-amber-50 border-2 border-amber-200 border-b-3 border-b-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2.5 shadow-sm">
                         <span class="text-xl">🔥</span>
                         <div>
-                            <div class="text-[9px] font-extrabold uppercase text-amber-700 leading-none">İstikrar Serisi</div>
+                            <div class="text-[9px] font-extrabold uppercase text-amber-700 leading-none">Seri:</div>
                             <div class="text-sm font-black text-amber-600 leading-none mt-1">${state.streak || 0} Gün</div>
                         </div>
                     </div>
@@ -143,7 +143,7 @@ export function renderDashboard() {
                 <div class="flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-black text-slate-800">📋 Günün Vazifeleri</h3>
-                        <p class="text-xs text-slate-500 font-medium">Vazifelerini tamamla, seviyeni büyüt!</p>
+                        <p class="text-xs text-slate-500 font-medium">"İki günü eşit olan ziyandadır."</p>
                     </div>
                     
                     <div class="flex items-center gap-2">

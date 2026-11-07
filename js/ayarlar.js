@@ -6,7 +6,7 @@ const { doc, updateDoc } = window.firebaseModules;
 
 // Sorumlular için rastgele referans kodu üreteci
 function generateReferralCode() {
-    return 'MEDRESE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 export function renderSettings() {
@@ -24,7 +24,6 @@ export function renderSettings() {
             <div class="bg-white p-6 rounded-3xl border-2 border-stone-200 border-b-4 border-b-stone-300 flex justify-between items-center shadow-sm">
                 <div>
                     <h2 class="text-xl font-black text-slate-800">⚙️ Ayarlar ve Hesap</h2>
-                    <p class="text-xs text-slate-500 font-medium">Oturum bilgilerinizi, rehberliği ve hesap ayarlarınızı yönetin.</p>
                 </div>
             </div>
 
@@ -35,8 +34,7 @@ export function renderSettings() {
                         🧭
                     </div>
                     <div>
-                        <h3 class="text-base font-black text-amber-950">Medrese Asistanı Kullanım Rehberi</h3>
-                        <p class="text-xs text-amber-800 font-medium">Uygulamayı hızlıca keşfetmek için kısa adımlar:</p>
+                        <h3 class="text-base font-black text-amber-950">Uygulama Kullanım Rehberi</h3>
                     </div>
                 </div>
 
@@ -68,10 +66,10 @@ export function renderSettings() {
             <!-- EĞER KULLANICI SORUMLU İSE REFERANS KODUNU GÖSTER -->
             ${state.role === 'sorumlu' ? `
                 <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
-                    <h3 class="text-lg font-black text-slate-800">👥 Lokal Ağ Referans Kodu</h3>
+                    <h3 class="text-lg font-black text-slate-800">👥 Referans Kodu</h3>
                     <div class="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl space-y-2">
                         <h4 class="text-xs font-black text-emerald-900 uppercase">Referans Kodunuz</h4>
-                        <p class="text-xs text-emerald-700">Talebelerinizin kayıt esnasında size bağlanabilmesi için bu kodu onlarla paylaşın:</p>
+                        <p class="text-xs text-emerald-700">Talebelerinizi görüntülemek ve gelişimlerini takip etmek için kayıt esnasında girilecek kod:</p>
                         <div class="flex items-center gap-2">
                             <input type="text" readonly value="${state.referralCode || 'Kod Üretiliyor...'}" class="bg-white border-2 border-emerald-300 rounded-xl px-3 py-2 text-xs font-bold text-emerald-900 flex-1 outline-none">
                             <button onclick="navigator.clipboard.writeText('${state.referralCode}'); showNotification('Kod kopyalandı!', 'success');" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black rounded-xl border-b-2 border-emerald-700">
