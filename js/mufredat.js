@@ -493,7 +493,10 @@ export const STATIC_CURRICULUM = [
             { id: "k5_mutalaaverme_1", title: "19. Söz (Reşhalar) 13. Reşha'ya kadar", category: "Mütalaa Verme Çalışması" },
             { id: "k5_mutalaaverme_2", title: "19. Söz (Reşhalar) 13. Reşha'dan sonuna kadar", category: "Mütalaa Verme Çalışması" },
             { id: "k5_mutalaaverme_3", title: "Sünnet-i Seniye Risalesi 9. Nükte'ye kadar", category: "Mütalaa Verme Çalışması" },
-            { id: "k5_mutalaaverme_4", title: "Sünnet-i Seniye Risalesi 9. Nükte'den sonuna kadar", category: "Mütalaa Verme Çalışması" }
+            { id: "k5_mutalaaverme_4", title: "Sünnet-i Seniye Risalesi 9. Nükte'den sonuna kadar", category: "Mütalaa Verme Çalışması" },
+
+            { id: "k5_sehadetname_1", title: "Türkçe 3 Metin Çevirisi", category: "Şehadetname" },
+            { id: "k5_sehadetname_2", title: "Türkçe Kavaid Ezberi", category: "Şehadetname" }
         ]
     },
     {
@@ -675,7 +678,10 @@ export const STATIC_CURRICULUM = [
             { id: "k7_mutalaaverme_1", title: "22. Mektup 5. Vecih'e kadar", category: "Mütalaa Verme Çalışması" },
             { id: "k7_mutalaaverme_2", title: "22. Mektup 5. Vecih'e kadar", category: "Mütalaa Verme Çalışması" },
             { id: "k7_mutalaaverme_3", title: "22. Mektup hatime", category: "Mütalaa Verme Çalışması" },
-            { id: "k7_mutalaaverme_4", title: "Şükür Risalesi", category: "Mütalaa Verme Çalışması" }
+            { id: "k7_mutalaaverme_4", title: "Şükür Risalesi", category: "Mütalaa Verme Çalışması" },
+
+            { id: "k6_sehadetname_1", title: "Arapça 3 Metin Çevirisi", category: "Şehadetname" },
+            { id: "k6_sehadetname_2", title: "Arapça Kavaid Ezberi", category: "Şehadetname" }
         ]
     },
     {
@@ -971,6 +977,7 @@ export function renderCurriculumTab() {
         "Ezber Çalışması": { icon: '🎙️', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', badge: 'bg-purple-100 text-purple-800 border-purple-300' },
         "Okunacak Kitaplar": { icon: '📖', bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', badge: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
         "Mütalaa Verme Çalışması": { icon: '📝', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-800', badge: 'bg-pink-100 text-pink-800 border-pink-300' },
+        "Şehadetname": { icon: '✒️', bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-800', badge: 'bg-rose-100 text-rose-800 border-rose-300' },
         "Özel": { icon: '✨', bg: 'bg-stone-50', border: 'border-stone-200', text: 'text-stone-800', badge: 'bg-stone-200 text-stone-800 border-stone-300' }
     };
 
@@ -981,6 +988,7 @@ export function renderCurriculumTab() {
         "Yazı Çalışması",
         "Okunacak Kitaplar",
         "Mütalaa Verme Çalışması",
+        "Şehadetname",
         "Özel"
     ];
 
@@ -1205,6 +1213,23 @@ window.setCourseLevel = function(level) {
     window.render();
 };
 
+function isOlderThanOneMonth(dateString) {
+    if (!dateString) return false;
+    const completedDate = new Date(dateString);
+    const today = new Date();
+    const diffTime = today - completedDate;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays >= 7; // 7 gün veya daha fazla geçmişse true döner
+}
+
+function isCooldownCategory(category) {
+    if (!category) return false;
+    const catLower = category.toLowerCase();
+    
+    // Kur'an, Ezber, Mütalaa ve Şehadetname içeren kategoriler 7 gün kısıtına tabidir
+    return catLower.includes('kur') || catLower.includes('ezber') || catLower.includes('mütalaa') || catLower.includes('şehadetname');
+}
+
 window.toggleTaskSelection = async function(currId) {
     let targetCourse = null;
     let foundItem = null;
@@ -1217,33 +1242,41 @@ window.toggleTaskSelection = async function(currId) {
 
     const targetLevel = targetCourse.level;
 
-    // KISITLAMA KONTROLÜ: Bir önceki kur tamamen bitmeden üst kura geçilemez
+    // KISITLAMA 1: Bir önceki kur tamamen bitmeden üst kura geçilemez
     if (targetLevel > 1) {
         const previousLevel = targetLevel - 1;
         const prevCourse = STATIC_CURRICULUM.find(c => c.level === previousLevel);
 
         if (prevCourse) {
-            // Önceki kurun tüm görev ID'leri
             const prevCourseTaskIds = prevCourse.tasks.map(t => t.id);
-
-            // Kullanıcının tamamlamış olduğu görev ID'leri (aktif programda tamamlananlar veya geçmiş arşivi)
             const completedTaskIds = new Set();
             
-            // Aktif listede tamamlanmış olanlar
             (state.tasks || []).forEach(t => {
                 if (t.completed && t.curriculumId) completedTaskIds.add(t.curriculumId);
             });
 
-            // Geçmiş geçmişte (completedHistory) tamamlanmış olanlar
             (state.completedHistory || []).forEach(t => {
-                if (t.curriculumId) completedTaskIds.add(t.curriculumId);
+                if (t.completed && t.curriculumId) completedTaskIds.add(t.curriculumId);
             });
 
-            // Önceki kurun tüm görevleri tamamlandı mı kontrol et
             const uncompletedCount = prevCourseTaskIds.filter(id => !completedTaskIds.has(id)).length;
 
             if (uncompletedCount > 0) {
                 showNotification(`Lütfen önce ${previousLevel}. Kur'un tüm vazifelerini tamamlayın! (${uncompletedCount} eksik var)`, "error");
+                return;
+            }
+        }
+    }
+
+    // KISITLAMA 2: Kur'an, Ezber, Mütalaa ve Şehadetname alanlarında 1 hafta (7 gün) geçmeden tekrar alınamaz
+    const needsCooldown = isCooldownCategory(foundItem.category);
+    if (needsCooldown) {
+        const historyItems = (state.completedHistory || []).filter(t => t.curriculumId === currId && t.completed);
+        if (historyItems.length > 0) {
+            const latestHistory = historyItems.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))[0];
+            
+            if (latestHistory && !isOlderThanOneMonth(latestHistory.completedAt)) {
+                showNotification(`Bu vazifeyi tekrar alabilmek için üzerinden en az 7 gün geçmelidir! (Son Tamamlama: ${latestHistory.completedAt})`, "error");
                 return;
             }
         }

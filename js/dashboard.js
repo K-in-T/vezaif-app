@@ -47,11 +47,17 @@ export function getTreePhaseDisplay(phase) {
     return { icon: '🌳', title: 'İlim Ağacı', desc: 'Gelişimi sürdürün.', kur: '1. Kur' };
 }
 
+// GÜN KONTROLÜ VE KONTROL EDİLDİĞİNDE (GÜN ATLATILDIĞINDA) GEÇMİŞE İŞLEME
 export async function processDailyCheck() {
     const today = getTodayString();
+    
+    // Eğer son kontrol edilen tarih bugünden farklıysa (gece 00:00 veya test butonuyla tetiklendiğinde)
     if (state.lastCheckDate && state.lastCheckDate !== today) {
         const tasks = state.tasks || [];
+        const checkDateToRecord = state.lastCheckDate || today;
+
         const completedTasks = tasks.filter(t => t.completed);
+        const uncompletedTasks = tasks.filter(t => !t.completed);
         
         const hasKuran = completedTasks.some(t => t.category === "Kur'an" || t.category === "Kur'ân-ı Kerim");
         const hasMutalaa = completedTasks.some(t => t.category === "Mütalaa" || t.category === "Risale-i Nur Mütalaası" || t.category === "Arapça");
@@ -75,17 +81,50 @@ export async function processDailyCheck() {
         state.treePhase = getPhaseString(currentIndex);
         
         if (!state.completedHistory) state.completedHistory = [];
+
+        // 1. O gün tamamlananları "completed: true" olarak arşive ekle
         completedTasks.forEach(task => {
-            state.completedHistory.push({ ...task, completedAt: state.lastCheckDate || today });
+            state.completedHistory.push({ 
+                ...task, 
+                completed: true,
+                completedAt: checkDateToRecord 
+            });
         });
 
-        state.tasks = tasks.filter(t => !t.completed);
+        // 2. O gün tamamlanmayanları da "completed: false" olarak arşive (geçmişe) ekle
+        uncompletedTasks.forEach(task => {
+            state.completedHistory.push({ 
+                ...task, 
+                completed: false,
+                completedAt: checkDateToRecord 
+            });
+        });
+
+        // Günün vazifelerini sıfırla veya yeni güne devret (isterseniz tamamlanmayanlar listede kalabilir veya temizlenebilir)
+        // İstediğiniz mantık gereği kontrol edilenler geçmişe gittiği için aktif listeden çıkarıyoruz:
+        state.tasks = []; 
         state.lastCheckDate = today;
+        
         await saveUserData();
+    } else if (!state.lastCheckDate) {
+        state.lastCheckDate = today;
     }
 }
 
+// TEST İÇİN: Tarihi 1 gün geriye çekip processDailyCheck fonksiyonunu tetikleyen buton fonksiyonu
+window.testSimulateMidnight = async function() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    state.lastCheckDate = d.toISOString().split('T')[0];
+    
+    await processDailyCheck();
+    showNotification("🌙 Test: Gün kontrolü yapıldı, tamamlanan ve tamamlanmayan tüm vazifeler geçmişe işlendi!", "success");
+    window.render();
+};
+
 export function renderDashboard() {
+    processDailyCheck();
+
     const treeInfo = getTreePhaseDisplay(state.treePhase || 'tohum1');
 
     const activeTasks = (state.tasks || []).filter(task => {
@@ -140,13 +179,17 @@ export function renderDashboard() {
 
             <!-- GÜNÜN VAZİFELERİ LİSTESİ -->
             <div class="bg-white border-2 border-stone-200 border-b-4 border-b-stone-300 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center flex-wrap gap-4">
                     <div>
                         <h3 class="text-lg font-black text-slate-800">📋 Günün Vazifeleri</h3>
                         <p class="text-xs text-slate-500 font-medium">"İki günü eşit olan ziyandadır."</p>
                     </div>
-                    
                     <div class="flex items-center gap-2">
+                        <!--  ############# TEST BUTONU ###############
+                        <button onclick="testSimulateMidnight()" class="px-3.5 py-2 bg-purple-500 hover:bg-purple-400 text-white border-2 border-purple-600 border-b-4 border-b-purple-700 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-1.5" title="Gün Kontrolünü ve Atlatmayı Simüle Et">
+                            <span>🌙</span> Gün Atlat (Test)
+                        </button>
+                        -->
                         <button onclick="switchTab('müfredat')" class="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-amber-950 border-2 border-amber-500 border-b-4 border-b-amber-600 rounded-2xl text-xs font-black transition-all active:translate-y-0.5 shadow-sm flex items-center gap-1.5">
                             <span>📖</span> Kur Listesi
                         </button>
@@ -217,16 +260,11 @@ window.togglePhaseModal = function() {
 
 window.toggleTaskComplete = async function(taskId) {
     if (!taskId) return;
-    const todayStr = getTodayString();
-
+    
+    // Sadece yerel olarak kutucuk işaretlenir/kaldırılır, hemen arşive gitmez!
     state.tasks = state.tasks.map(t => {
         if (String(t.id) === String(taskId)) {
-            const nextCompleted = !t.completed;
-            return { 
-                ...t, 
-                completed: nextCompleted, 
-                completedAt: nextCompleted ? todayStr : null 
-            };
+            return { ...t, completed: !t.completed };
         }
         return t;
     });
@@ -265,7 +303,6 @@ window.deleteTask = async function(taskId) {
     }
 };
 
-// DÜZENLEME İŞLEMLERİ İÇİN EKLENEN GLOBAL FONKSİYONLAR
 window.openEditTaskModal = function(taskId) {
     const task = (state.tasks || []).find(t => String(t.id) === String(taskId));
     if (task) {

@@ -23,7 +23,7 @@ export let state = {
 
 // Rastgele harf ve sayılardan oluşan referans kodu üreteci
 function generateReferralCode() {
-    return 'MEDRESE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 export async function loadStudents() {
